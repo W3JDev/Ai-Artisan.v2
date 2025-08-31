@@ -7,48 +7,96 @@ import {
   ChevronDoubleRightIcon, CheckBadgeIcon, ShieldCheckIcon, PresentationChartLineIcon,
   ArrowUpRightIcon,
   LinkedInIcon, 
-  TwitterXIcon
+  TwitterXIcon,
+  GoogleIcon,
+  MicrosoftIcon,
+  AmazonIcon,
 } from './icons';
 
 interface LandingPageProps {
   onInterestRegistered: () => void;
 }
 
-const ResumeMockup3D: React.FC = () => {
+const AppScreenshotPreview: React.FC = () => {
   return (
     <div className="hero-resume-preview group">
-      <div className="resume-3d-mockup w-full max-w-md h-auto bg-white/5 backdrop-blur-md border border-white/10 rounded-lg p-6 shadow-3d transition-all duration-500 ease-out group-hover:shadow-3d-hover">
-        <div className="flex items-center mb-4">
-          <div className="w-16 h-16 rounded-full bg-gradient-to-br from-premium-gradient-from to-premium-gradient-to mr-4"></div>
-          <div>
-            <div className="h-4 bg-sky-300/70 rounded w-3/4 mb-2"></div>
-            <div className="h-3 bg-sky-400/50 rounded w-1/2"></div>
+      <div className="resume-3d-mockup w-full max-w-lg h-auto bg-white/5 backdrop-blur-xl border border-white/10 rounded-lg p-6 shadow-3d transition-all duration-500 ease-out group-hover:shadow-3d-hover group-hover:scale-[1.02]">
+        {/* Header */}
+        <div className="text-center mb-4">
+          <div className="h-6 bg-slate-200/80 rounded w-4/5 mx-auto"></div>
+          <div className="h-4 bg-sky-400/60 rounded w-1/2 mx-auto mt-2"></div>
+        </div>
+        {/* Contact */}
+        <div className="flex justify-center gap-x-4 mb-4 border-b border-slate-400/20 pb-2">
+          <div className="h-3 bg-slate-300/40 rounded w-1/4"></div>
+          <div className="h-3 bg-slate-300/40 rounded w-1/4"></div>
+          <div className="h-3 bg-slate-300/40 rounded w-1/4"></div>
+        </div>
+        {/* Summary */}
+        <div className="h-3 bg-sky-500/60 rounded w-1/4 mb-2"></div>
+        <div className="space-y-1.5">
+          {[...Array(2)].map((_, i) => <div key={i} className="h-2 bg-slate-300/30 rounded w-full"></div>)}
+          <div className="h-2 bg-slate-300/30 rounded w-5/6"></div>
+        </div>
+        {/* Experience */}
+        <div className="mt-5">
+          <div className="h-3 bg-sky-500/60 rounded w-1/3 mb-2.5"></div>
+          <div className="h-2.5 bg-slate-200/60 rounded w-3/5 mb-1"></div>
+          <div className="h-2 bg-slate-400/50 rounded w-2/5 mb-2"></div>
+          <div className="space-y-1.5 pl-4">
+            {[...Array(3)].map((_, i) => <div key={i} className="h-2 bg-slate-300/30 rounded w-full"></div>)}
           </div>
         </div>
-        <div className="space-y-2">
-          {[...Array(3)].map((_, i) => (
-            <div key={i} className="h-2 bg-slate-300/40 rounded w-full"></div>
-          ))}
-          <div className="h-2 bg-slate-300/40 rounded w-5/6"></div>
-        </div>
-        <div className="mt-6 space-y-3">
-          <h4 className="h-3 bg-sky-500/60 rounded w-1/3 mb-2"></h4>
-          {[...Array(2)].map((_, i) => (
-             <div key={i} className="h-2 bg-slate-300/30 rounded w-full"></div>
-          ))}
-        </div>
-         <div className="mt-4 space-y-3">
-          <h4 className="h-3 bg-sky-500/60 rounded w-1/4 mb-2"></h4>
-          <div className="flex space-x-2">
+        {/* Skills */}
+        <div className="mt-5">
+          <div className="h-3 bg-sky-500/60 rounded w-1/4 mb-2.5"></div>
+          <div className="flex flex-wrap gap-2">
+            <div className="h-5 bg-sky-600/50 rounded-full w-1/5"></div>
             <div className="h-5 bg-sky-600/50 rounded-full w-1/4"></div>
+            <div className="h-5 bg-sky-600/50 rounded-full w-1/6"></div>
             <div className="h-5 bg-sky-600/50 rounded-full w-1/3"></div>
-            <div className="h-5 bg-sky-600/50 rounded-full w-1/4"></div>
           </div>
         </div>
       </div>
     </div>
   );
 };
+
+const AnalysisScreenshotPreview: React.FC = () => (
+  <div className="bg-dark-light/50 backdrop-blur-md border border-dark-lighter p-6 rounded-xl shadow-glass w-full max-w-md mx-auto">
+    <h3 className="text-xl font-bold text-gray-200 mb-4 font-display">Job Match Analysis</h3>
+    <div className="mb-5">
+      <div className="flex justify-between items-baseline mb-1">
+        <h4 className="font-semibold text-slate-300">Job Alignment Score</h4>
+        <span className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-sky-400">92%</span>
+      </div>
+      <div className="w-full bg-slate-600/50 rounded-full h-2.5">
+        <div className="bg-gradient-to-r from-green-400 to-sky-400 h-2.5 rounded-full" style={{ width: '92%' }}></div>
+      </div>
+    </div>
+    <div className="mb-5">
+      <h4 className="font-semibold text-slate-300 mb-2">Alignment Strengths</h4>
+      <ul className="space-y-1.5">
+        <li className="flex items-start text-sm text-slate-400"><CheckBadgeIcon className="w-5 h-5 text-green-400 mr-2 flex-shrink-0" /> Strong experience in React & TypeScript.</li>
+        <li className="flex items-start text-sm text-slate-400"><CheckBadgeIcon className="w-5 h-5 text-green-400 mr-2 flex-shrink-0" /> Proven track record in agile environments.</li>
+      </ul>
+    </div>
+    <div>
+      <h4 className="font-semibold text-slate-300 mb-2">Potential Gaps / Improvements</h4>
+      <ul className="space-y-1.5">
+        <li className="flex items-start text-sm text-slate-400"><FeatureLightBulbIcon className="w-5 h-5 text-yellow-400 mr-2 flex-shrink-0" /> Highlight experience with cloud platforms.</li>
+      </ul>
+    </div>
+  </div>
+);
+
+const CompanyLogos: React.FC = () => (
+  <div className="flex items-center justify-center gap-x-6 sm:gap-x-8 mt-4">
+    <GoogleIcon className="h-6 text-slate-500 hover:text-slate-400 transition-colors" />
+    <MicrosoftIcon className="h-6 text-slate-500 hover:text-slate-400 transition-colors" />
+    <AmazonIcon className="h-7 text-slate-500 hover:text-slate-400 transition-colors" />
+  </div>
+);
 
 
 interface FeatureCardProps {
@@ -282,14 +330,14 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onInterestRegistered }
     <div className="bg-dark min-h-screen text-gray-200 font-sans">
       <style>{`
         .hero-resume-preview {
-          perspective: 1200px;
+          perspective: 1500px;
         }
         .resume-3d-mockup {
-          transform: rotateX(12deg) rotateY(-10deg) rotateZ(2deg);
+          transform: rotateX(10deg) rotateY(-8deg) rotateZ(1deg);
           will-change: transform, box-shadow;
         }
         .hero-resume-preview:hover .resume-3d-mockup {
-          transform: rotateX(8deg) rotateY(-5deg) rotateZ(0deg) scale(1.03);
+          transform: rotateX(5deg) rotateY(-3deg) rotateZ(0deg) scale(1.03);
         }
       `}</style>
 
@@ -342,8 +390,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onInterestRegistered }
               </a>
             </div>
           </div>
-          <div className="hidden md:block animate-fade-in-up" style={{animationDelay: '0.3s'}}> {/* This uses Tailwind animation directly */}
-            <ResumeMockup3D />
+          <div className="hidden md:block animate-fade-in-up" style={{animationDelay: '0.3s'}}>
+            <AppScreenshotPreview />
           </div>
         </div>
       </header>
@@ -404,9 +452,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onInterestRegistered }
               </ul>
             </div>
             <div ref={addToObservedElements} className="hidden md:block stats-reveal" style={{transitionDelay: '0.2s'}}>
-              <div className="bg-dark-light/50 backdrop-blur-md border border-dark-lighter p-8 rounded-xl shadow-glass aspect-video flex items-center justify-center">
-                <PresentationChartLineIcon className="w-36 h-36 text-premium-gradient-from opacity-60"/>
-              </div>
+              <AnalysisScreenshotPreview />
             </div>
           </div>
         </div>
@@ -466,7 +512,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onInterestRegistered }
                   <li key={item} className="flex items-center"><CogIcon className="w-5 h-5 text-slate-500 mr-2 flex-shrink-0"/> {item}</li>
                 ))}
               </ul>
-              <p className="text-sm text-center text-slate-500 mb-4">Trusted by professionals at <span className="font-semibold text-sky-400">Google, Microsoft, Amazon</span> & more.</p>
+              <div className="text-sm text-center text-slate-500 mb-4 mt-auto">
+                <p>Trusted by professionals at top companies.</p>
+                <CompanyLogos />
+              </div>
               <button
                 onClick={handleOpenModal} 
                 className="w-full bg-dark-light hover:bg-dark-lighter border border-dark-lighter text-sky-300/80 font-semibold py-3.5 px-6 rounded-lg transition-colors duration-300"
