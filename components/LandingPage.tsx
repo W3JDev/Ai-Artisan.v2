@@ -5,7 +5,9 @@ import {
   BriefcaseIcon, SparklesIcon, DocumentMagnifyingGlassIcon, LightBulbIcon as FeatureLightBulbIcon, 
   ArrowTrendingUpIcon, ClockIcon, AcademicCapIcon, RocketLaunchIcon, UserGroupIcon, CogIcon,
   ChevronDoubleRightIcon, CheckBadgeIcon, ShieldCheckIcon, PresentationChartLineIcon,
-  ArrowUpRightIcon
+  ArrowUpRightIcon,
+  LinkedInIcon, 
+  TwitterXIcon
 } from './icons';
 
 interface LandingPageProps {
@@ -256,6 +258,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onInterestRegistered }
     onInterestRegistered(); 
     handleCloseModal();
   };
+  
+  const shareUrl = encodeURIComponent('https://ai-resume-artisan.example.dev'); // Replace with actual URL
+  const shareText = encodeURIComponent('Craft your professional resume in minutes with AI Resume Artisan! Leveraging Google Gemini for tailored, ATS-friendly results. #AI #ResumeBuilder #JobSearch');
+  const twitterShareUrl = `https://twitter.com/intent/tweet?url=${shareUrl}&text=${shareText}`;
+  const linkedinShareUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${shareUrl}`;
 
   const navLinks = [
     { href: '#features', label: 'Features' },
@@ -535,8 +542,16 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onInterestRegistered }
         </div>
       </section>
 
-      <footer className="py-12 bg-dark-light text-center">
-        <div className="container mx-auto px-6">
+      <footer className="py-12 bg-dark-light">
+        <div className="container mx-auto px-6 text-center">
+           <div className="flex justify-center items-center space-x-6 mb-6">
+              <a href={twitterShareUrl} target="_blank" rel="noopener noreferrer" aria-label="Share on Twitter" className="text-slate-400 hover:text-highlight transition-colors">
+                <TwitterXIcon className="w-5 h-5" />
+              </a>
+              <a href={linkedinShareUrl} target="_blank" rel="noopener noreferrer" aria-label="Share on LinkedIn" className="text-slate-400 hover:text-highlight transition-colors">
+                <LinkedInIcon className="w-5 h-5" />
+              </a>
+            </div>
           <p className="text-slate-400 text-sm mb-3">
             &copy; {new Date().getFullYear()} AI Resume Artisan. All rights reserved. Built with ❤️ & AI.
           </p>

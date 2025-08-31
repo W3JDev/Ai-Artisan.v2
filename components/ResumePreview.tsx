@@ -1,9 +1,9 @@
 
-import React, { useState } from 'react'; // Added useState
+import React, { useState, useEffect, useRef } from 'react';
 import type { ResumePreviewProps, ContactInfo, ExperienceItem, EducationItem, CertificationItem } from '../types';
-import { MailIcon, PhoneIcon, LinkedInIcon, GlobeAltIcon, LocationMarkerIcon, DownloadIcon, ClipboardCopyIcon, CheckIcon } from './icons'; // Added ClipboardCopyIcon, CheckIcon
+import { MailIcon, PhoneIcon, LinkedInIcon, GlobeAltIcon, LocationMarkerIcon, DownloadIcon, ClipboardCopyIcon, CheckIcon, ShareIcon, TwitterXIcon } from './icons';
 import { downloadResumeAsPdf } from '../utils/downloadUtils';
-import { linkifyText, formatResumeDataAsText } from '../utils/textUtils'; // Added formatResumeDataAsText
+import { linkifyText, formatResumeDataAsText } from '../utils/textUtils';
 
 const SectionTitleClassic: React.FC<{ title: string }> = ({ title }) => (
   <h2 className="text-xs font-bold tracking-wider uppercase text-gray-500 pb-1.5 mb-3 border-b border-gray-300">
@@ -42,6 +42,21 @@ const ContactDetail: React.FC<{ icon: React.ReactNode, text?: string, href?: str
 export const ResumePreview: React.FC<ResumePreviewProps> = ({ data, template, fontGroup }) => {
   const { name, jobTitle, contact, summary, experience, education, licensesCertifications, skills } = data;
   const [isCopied, setIsCopied] = useState(false);
+  const [isShareMenuOpen, setIsShareMenuOpen] = useState(false);
+  const shareMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (shareMenuRef.current && !shareMenuRef.current.contains(event.target as Node)) {
+        setIsShareMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   const handleDownload = async () => {
     const resumeContentElement = document.getElementById('resume-inner-content-for-pdf'); 
@@ -63,6 +78,12 @@ export const ResumePreview: React.FC<ResumePreviewProps> = ({ data, template, fo
       alert('Failed to copy resume to clipboard. Please try again.');
     });
   };
+  
+  // Sharing constants
+  const shareUrl = encodeURIComponent('https://ai-resume-artisan.example.dev'); // Placeholder for actual URL
+  const shareTextSuccess = encodeURIComponent(`I just crafted a professional, AI-tailored resume with AI Resume Artisan! Check out this awesome tool for your job search. #AI #ResumeBuilder #JobSuccess`);
+  const twitterShareUrl = `https://twitter.com/intent/tweet?url=${shareUrl}&text=${shareTextSuccess}`;
+  const linkedinShareUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${shareUrl}`;
 
   const getDisplayUrl = (url: string) => {
     try {
@@ -95,6 +116,42 @@ export const ResumePreview: React.FC<ResumePreviewProps> = ({ data, template, fo
       className={`bg-white text-gray-800 p-6 sm:p-8 shadow-resume text-[10pt] leading-relaxed A4-aspect-ratio-approx relative template-${template} font-group-${fontGroup}`}
     >
       <div className="absolute top-4 right-4 flex space-x-2">
+        <div className="relative" ref={shareMenuRef}>
+            <button
+              onClick={() => setIsShareMenuOpen(!isShareMenuOpen)}
+              title="Share the app"
+              aria-label="Share the app"
+              className={commonButtonClasses}
+            >
+              <ShareIcon className="w-5 h-5" />
+            </button>
+            {isShareMenuOpen && (
+              <div
+                className="absolute right-0 mt-2 w-52 bg-white rounded-md shadow-lg py-1 z-10 border border-gray-200 animate-fade-in-up"
+                style={{ animationDuration: '0.2s' }}
+              >
+                <div className="px-4 py-2 text-xs text-gray-500">Share your success!</div>
+                <a
+                  href={twitterShareUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                >
+                  <TwitterXIcon className="w-4 h-4 mr-3 text-gray-800" />
+                  Share on X (Twitter)
+                </a>
+                <a
+                  href={linkedinShareUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                >
+                  <LinkedInIcon className="w-4 h-4 mr-3 text-[#0077B5]" />
+                  Share on LinkedIn
+                </a>
+              </div>
+            )}
+        </div>
         <button
           onClick={handleCopyToClipboard}
           title={isCopied ? "Copied!" : "Copy Resume Text"}

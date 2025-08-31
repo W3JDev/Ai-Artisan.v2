@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useEffect } from 'react';
 import { ResumeInput } from './components/ResumeInput';
 import { ResumePreview } from './components/ResumePreview';
@@ -6,6 +7,7 @@ import { generateResumeFromText, generateCoverLetter, getSuggestionForGap } from
 import type { ResumeData, TemplateName, FontGroupName, TailoringStrength } from './types';
 import { LoadingSpinner } from './components/LoadingSpinner';
 import { LightBulbIcon, XMarkIcon } from './components/icons'; 
+import { CheckBadgeIcon } from './components/icons'; // Assuming CheckBadgeIcon is available
 
 const App = () => {
   const [rawText, setRawText] = useState<string>('');
@@ -95,7 +97,9 @@ const App = () => {
   const handleGapClick = async (gapText: string, index: number) => {
     if (!resumeData || !jobDescriptionUsedForLastResume.trim()) return;
 
-    if (selectedGap && selectedGap.index === index && (gapSuggestion || isLoadingGapSuggestion)) {
+    // If clicking the same gap again, toggle it off.
+    if (selectedGap && selectedGap.index === index) {
+        dismissGapSuggestion();
         return;
     }
     
@@ -134,229 +138,210 @@ const App = () => {
 
   const showTailoringInsights = resumeData && 
                                 !isLoadingResume && 
-                                jobDescriptionUsedForLastResume.trim() && 
-                                ( (resumeData.tailoringKeywords && resumeData.tailoringKeywords.length > 0) || resumeData.tailoringStrength );
+                                (jobDescriptionUsedForLastResume || jobDescription).trim().length > 0;
 
-  const showJobMatchAnalysis = resumeData &&
-                               !isLoadingResume &&
-                               jobDescriptionUsedForLastResume.trim() &&
-                               resumeData.jobMatchAnalysis &&
-                               (resumeData.jobMatchAnalysis.matchScore !== undefined || 
-                                (resumeData.jobMatchAnalysis.strengths && resumeData.jobMatchAnalysis.strengths.length > 0) ||
-                                (resumeData.jobMatchAnalysis.gaps && resumeData.jobMatchAnalysis.gaps.length > 0));
-
-  const getTailoringStrengthColor = (strength?: TailoringStrength) => {
-    switch (strength) {
-      case 'Excellent': return 'text-green-400';
-      case 'Good': return 'text-sky-400';
-      case 'Fair': return 'text-yellow-400';
-      default: return 'text-slate-400';
-    }
+  const strengthColorClasses: { [key in TailoringStrength]: string } = {
+    Excellent: 'text-green-600 bg-green-100',
+    Good: 'text-sky-600 bg-sky-100',
+    Fair: 'text-yellow-600 bg-yellow-100',
   };
-
-  const getMatchScoreColor = (score?: number) => {
-    if (score === undefined) return 'bg-slate-500';
-    if (score >= 80) return 'bg-green-500';
-    if (score >= 60) return 'bg-sky-500';
-    if (score >= 40) return 'bg-yellow-500';
+  
+  const scoreProgressColor = (score: number) => {
+    if (score >= 85) return 'bg-green-500';
+    if (score >= 70) return 'bg-sky-500';
+    if (score >= 50) return 'bg-yellow-500';
     return 'bg-red-500';
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-700 p-4 sm:p-8 font-sans text-gray-200">
-      <header className="text-center mb-10">
-        <h1 className="text-4xl sm:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-sky-400 to-blue-500">
-          AI Resume Artisan
-        </h1>
-        <p className="text-lg text-slate-400 mt-2">
-          Craft your perfect one-page resume and cover letter with the power of AI.
-        </p>
-      </header>
+    <div className="bg-gray-100 min-h-screen font-sans">
+      <main className="max-w-screen-2xl mx-auto p-4 sm:p-6 lg:p-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+          
+          {/* Left Column: Inputs & Controls */}
+          <div className="lg:sticky lg:top-8 space-y-6">
+            <div className="bg-slate-800 text-white p-6 rounded-lg shadow-2xl">
+              <div className="flex items-center mb-4">
+                <h2 className="text-2xl font-bold font-display text-sky-300">AI Resume Artisan</h2>
+              </div>
+              <ResumeInput
+                rawText={rawText}
+                onRawTextChange={setRawText}
+                jobDescription={jobDescription}
+                onJobDescriptionChange={setJobDescription}
+                onGenerateResume={handleGenerateResume}
+                onGenerateCoverLetter={handleGenerateCoverLetter}
+                isGeneratingResume={isLoadingResume}
+                isGeneratingCoverLetter={isLoadingCoverLetter}
+                resumeGenerated={!!resumeData}
+                selectedTemplate={selectedTemplate}
+                onTemplateChange={setSelectedTemplate}
+                selectedFontGroup={selectedFontGroup}
+                onFontGroupChange={setSelectedFontGroup}
+              />
+            </div>
 
-      <div className="container mx-auto grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <div className="space-y-6">
-          <div className="bg-slate-800 p-6 rounded-xl shadow-2xl">
-            <ResumeInput
-              rawText={rawText}
-              onRawTextChange={setRawText}
-              jobDescription={jobDescription}
-              onJobDescriptionChange={setJobDescription}
-              onGenerateResume={() => handleGenerateResume()}
-              onGenerateCoverLetter={handleGenerateCoverLetter}
-              isGeneratingResume={isLoadingResume}
-              isGeneratingCoverLetter={isLoadingCoverLetter}
-              resumeGenerated={!!resumeData}
-              selectedTemplate={selectedTemplate}
-              onTemplateChange={setSelectedTemplate}
-              selectedFontGroup={selectedFontGroup}
-              onFontGroupChange={setSelectedFontGroup}
-            />
-            {error && <p className="mt-4 text-red-400 bg-red-900/50 p-3 rounded-md">{error}</p>}
+            {error && (
+              <div className="bg-red-200/90 border border-red-500 text-red-800 px-4 py-3 rounded-lg relative shadow-md" role="alert">
+                <strong className="font-bold">An error occurred: </strong>
+                <span className="block sm:inline">{error}</span>
+              </div>
+            )}
+            
+            {/* AI Analysis Sections */}
+            {showTailoringInsights && resumeData && (
+              <div className="space-y-6 animate-fade-in-up">
+                {/* AI Tailoring Insights */}
+                {(resumeData.tailoringStrength || resumeData.tailoringKeywords) && (
+                    <div className="bg-white p-6 rounded-lg shadow-md text-gray-800">
+                        <h3 className="text-xl font-bold text-gray-800 mb-4">AI Tailoring Insights</h3>
+                        {resumeData.tailoringStrength && (
+                            <div className="mb-4">
+                                <h4 className="font-semibold text-gray-700 mb-1">Overall Tailoring Fit</h4>
+                                <span className={`px-2.5 py-1 text-sm font-semibold rounded-full ${strengthColorClasses[resumeData.tailoringStrength] || 'text-gray-600 bg-gray-100'}`}>{resumeData.tailoringStrength}</span>
+                            </div>
+                        )}
+                        {resumeData.tailoringKeywords && resumeData.tailoringKeywords.length > 0 && (
+                            <div>
+                                <h4 className="font-semibold text-gray-700 mb-2">Prioritized Key Terms</h4>
+                                <div className="flex flex-wrap gap-1.5">
+                                    {resumeData.tailoringKeywords.map(keyword => (
+                                        <span key={keyword} className="bg-sky-100 text-sky-800 text-xs font-medium px-2 py-0.5 rounded-full">{keyword}</span>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                )}
+                {/* Job Match Analysis */}
+                {resumeData.jobMatchAnalysis && (
+                    <div className="bg-white p-6 rounded-lg shadow-md text-gray-800">
+                        <h3 className="text-xl font-bold text-gray-800 mb-4">Job Match Analysis</h3>
+                        
+                        {resumeData.jobMatchAnalysis.matchScore !== undefined && (
+                          <div className="mb-4">
+                            <div className="flex justify-between items-baseline mb-1">
+                                <h4 className="font-semibold text-gray-700">Job Alignment Score</h4>
+                                <span className={`text-lg font-bold ${scoreProgressColor(resumeData.jobMatchAnalysis.matchScore).replace('bg-', 'text-')}`}>{resumeData.jobMatchAnalysis.matchScore}%</span>
+                            </div>
+                            <div className="w-full bg-gray-200 rounded-full h-2.5">
+                                <div className={`${scoreProgressColor(resumeData.jobMatchAnalysis.matchScore)} h-2.5 rounded-full`} style={{width: `${resumeData.jobMatchAnalysis.matchScore}%`}}></div>
+                            </div>
+                          </div>
+                        )}
+                        
+                        {resumeData.jobMatchAnalysis.strengths && resumeData.jobMatchAnalysis.strengths.length > 0 && (
+                            <div className="mb-4">
+                                <h4 className="font-semibold text-gray-700 mb-2">Alignment Strengths</h4>
+                                <ul className="space-y-1.5">
+                                {resumeData.jobMatchAnalysis.strengths.map((strength, index) => (
+                                    <li key={index} className="flex items-start text-sm text-gray-600"><CheckBadgeIcon className="w-5 h-5 text-green-500 mr-2 flex-shrink-0 mt-0.5"/> {strength}</li>
+                                ))}
+                                </ul>
+                            </div>
+                        )}
+
+                        {resumeData.jobMatchAnalysis.gaps && resumeData.jobMatchAnalysis.gaps.length > 0 && (
+                          <div className="mt-4">
+                            <h4 className="font-semibold text-gray-700 mb-2">Potential Gaps / Improvements</h4>
+                            <ul className="space-y-2">
+                              {resumeData.jobMatchAnalysis.gaps.map((gap, index) => (
+                                <li key={index} className="bg-gray-50 border border-gray-200 rounded-lg transition-shadow hover:shadow-md">
+                                  <div className="p-3 flex justify-between items-start">
+                                    <p className="text-gray-700 pr-4">{gap}</p>
+                                    <button
+                                      onClick={() => handleGapClick(gap, index)}
+                                      title="Get AI Suggestion"
+                                      aria-label={`Get AI suggestion for gap: ${gap}`}
+                                      className={`flex-shrink-0 p-1.5 rounded-full transition-colors ${selectedGap?.index === index ? 'bg-sky-600 text-white' : 'bg-gray-200 hover:bg-sky-500 hover:text-white text-sky-800'}`}
+                                    >
+                                      <LightBulbIcon className="w-5 h-5" />
+                                    </button>
+                                  </div>
+
+                                  {/* INLINE SUGGESTION BOX */}
+                                  {selectedGap?.index === index && (
+                                    <div className="border-t border-gray-200 p-4 bg-gray-50/50 rounded-b-lg">
+                                      {isLoadingGapSuggestion ? (
+                                        <div className="flex items-center text-sky-600">
+                                            <LoadingSpinner size="h-5 w-5 mr-3" color="text-sky-600" />
+                                            <span>Finding the best suggestion...</span>
+                                        </div>
+                                      ) : gapSuggestionError ? (
+                                        <div className="text-red-700 bg-red-100 p-3 rounded-md">
+                                            <div className="flex justify-between items-center mb-1">
+                                                <p className="font-semibold">Error</p>
+                                                <button onClick={dismissGapSuggestion} className="p-1 rounded-full hover:bg-red-200"><XMarkIcon className="w-4 h-4" /></button>
+                                            </div>
+                                            <p>{gapSuggestionError}</p>
+                                        </div>
+                                      ) : gapSuggestion ? (
+                                        <div className="space-y-3">
+                                            <p className="text-gray-800 font-semibold">AI Suggestion:</p>
+                                            <blockquote className="bg-gray-100 p-3 rounded-md border-l-4 border-sky-500 text-gray-700 italic">
+                                                {gapSuggestion}
+                                            </blockquote>
+                                            <div className="flex space-x-3 pt-2">
+                                                <button
+                                                    onClick={handleApplySuggestion}
+                                                    className="px-4 py-2 text-sm font-medium rounded-md text-white bg-sky-600 hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500 transition-colors"
+                                                >
+                                                    Apply Suggestion
+                                                </button>
+                                                <button
+                                                    onClick={dismissGapSuggestion}
+                                                    className="px-4 py-2 text-sm font-medium rounded-md text-gray-700 bg-gray-200 hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-colors"
+                                                >
+                                                    Dismiss
+                                                </button>
+                                            </div>
+                                        </div>
+                                      ) : null}
+                                    </div>
+                                  )}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                    </div>
+                )}
+              </div>
+            )}
           </div>
 
-          {showTailoringInsights && (
-            <div className="bg-slate-800 p-6 rounded-xl shadow-2xl">
-              <h3 className="text-xl font-semibold text-sky-400 mb-3">AI Tailoring Insights</h3>
-              
-              {resumeData?.tailoringStrength && (
-                <p className="text-sm text-slate-300 mb-3">
-                  Overall Tailoring Fit: <strong className={getTailoringStrengthColor(resumeData.tailoringStrength)}>{resumeData.tailoringStrength}</strong>
-                </p>
-              )}
-
-              {resumeData?.tailoringKeywords && resumeData.tailoringKeywords.length > 0 && (
-                <>
-                  <p className="text-sm text-slate-400 mb-2">
-                    The AI prioritized these key terms from the job description:
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {resumeData.tailoringKeywords.map((keyword, index) => (
-                      <span
-                        key={index}
-                        className="bg-sky-700 text-sky-200 text-xs font-medium px-2.5 py-1 rounded-full"
-                      >
-                        {keyword}
-                      </span>
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
-          )}
-
-          {showJobMatchAnalysis && resumeData?.jobMatchAnalysis && (
-            <div className="bg-slate-800 p-6 rounded-xl shadow-2xl">
-              <h3 className="text-xl font-semibold text-sky-400 mb-4">Job Match Analysis</h3>
-
-              {resumeData.jobMatchAnalysis.matchScore !== undefined && (
-                <div className="mb-4">
-                  <div className="flex justify-between text-sm text-slate-300 mb-1">
-                    <span>Job Alignment Score:</span>
-                    <span className="font-semibold">{resumeData.jobMatchAnalysis.matchScore}%</span>
-                  </div>
-                  <div className="w-full bg-slate-600 rounded-full h-2.5">
-                    <div 
-                      className={`${getMatchScoreColor(resumeData.jobMatchAnalysis.matchScore)} h-2.5 rounded-full transition-all duration-500 ease-out`} 
-                      style={{ width: `${resumeData.jobMatchAnalysis.matchScore}%` }}
-                    ></div>
-                  </div>
+          {/* Right Column: Previews */}
+          <div className="space-y-8">
+            {isLoadingResume && (
+              <div className="flex justify-center items-center p-10 bg-white rounded-lg shadow-md min-h-[500px]">
+                <div className="text-center">
+                    <LoadingSpinner color="text-sky-500" />
+                    <p className="mt-2 text-gray-600">Crafting your resume...</p>
                 </div>
-              )}
-
-              {resumeData.jobMatchAnalysis.strengths && resumeData.jobMatchAnalysis.strengths.length > 0 && (
-                <div className="mb-4">
-                  <h4 className="text-md font-semibold text-green-400 mb-2">Alignment Strengths:</h4>
-                  <ul className="list-disc list-inside space-y-1 text-sm text-slate-300">
-                    {resumeData.jobMatchAnalysis.strengths.map((strength, index) => (
-                      <li key={`strength-${index}`}>{strength}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              {resumeData.jobMatchAnalysis.gaps && resumeData.jobMatchAnalysis.gaps.length > 0 && (
-                <div className="mb-4">
-                  <h4 className="text-md font-semibold text-yellow-400 mb-2">Potential Gaps / Improvements:</h4>
-                  <ul className="space-y-1 text-sm text-slate-300">
-                    {resumeData.jobMatchAnalysis.gaps.map((gap, index) => (
-                      <li key={`gap-${index}`} className="group">
-                        <button
-                          onClick={() => handleGapClick(gap, index)}
-                          className="flex items-start text-left w-full p-2 rounded-md hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-sky-500 transition-colors"
-                          aria-label={`Get suggestion for: ${gap}`}
-                        >
-                          <LightBulbIcon className={`w-5 h-5 mr-2 mt-0.5 flex-shrink-0 ${selectedGap?.index === index && (gapSuggestion || isLoadingGapSuggestion) ? 'text-yellow-300' : 'text-yellow-500 group-hover:text-yellow-300'}`} />
-                          <span>{gap}</span>
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              {(isLoadingGapSuggestion || gapSuggestion || gapSuggestionError) && (
-                <div className="mt-4 p-4 border border-slate-700 rounded-md bg-slate-800/50">
-                  {isLoadingGapSuggestion && (
-                    <div className="flex items-center text-slate-300">
-                      <LoadingSpinner size="h-5 w-5 mr-2" />
-                      <span>Fetching suggestion...</span>
-                    </div>
-                  )}
-                  {gapSuggestionError && !isLoadingGapSuggestion && (
-                    <div>
-                      <p className="text-red-400 text-sm">{gapSuggestionError}</p>
-                    </div>
-                  )}
-                  {gapSuggestion && !isLoadingGapSuggestion && (
-                    <div>
-                      <h5 className="text-sm font-semibold text-sky-300 mb-1">AI Suggestion:</h5>
-                      <p className="text-sm text-slate-300 whitespace-pre-wrap">{gapSuggestion}</p>
-                      <div className="mt-3 flex space-x-3">
-                        <button
-                            onClick={handleApplySuggestion}
-                            disabled={isLoadingResume}
-                            className="text-xs text-sky-300 bg-sky-700 hover:bg-sky-600 px-3 py-1.5 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500 disabled:opacity-50"
-                            aria-label="Apply this suggestion and regenerate resume"
-                          >
-                            {isLoadingResume && selectedGap ? 'Applying...' : 'Apply Suggestion'}
-                          </button>
-                        <button
-                          onClick={dismissGapSuggestion}
-                          className="text-xs text-slate-400 hover:text-sky-300 underline focus:outline-none flex items-center"
-                          aria-label="Dismiss suggestion"
-                        >
-                          <XMarkIcon className="w-3 h-3 mr-1" /> Dismiss
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                   {(gapSuggestionError && !isLoadingGapSuggestion) && ( 
-                    <button
-                      onClick={dismissGapSuggestion}
-                      className="mt-3 text-xs text-slate-400 hover:text-sky-300 underline focus:outline-none flex items-center"
-                      aria-label="Dismiss suggestion"
-                    >
-                       <XMarkIcon className="w-3 h-3 mr-1" /> Dismiss
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-
-        </div>
-
-        <div className="space-y-8">
-          {isLoadingResume && (
-            <div className="flex flex-col items-center justify-center bg-slate-800 p-6 rounded-xl shadow-2xl min-h-[300px]">
-              <LoadingSpinner />
-              <p className="mt-4 text-lg text-slate-300">Generating your resume...</p>
-            </div>
-          )}
-          {resumeData && !isLoadingResume && (
-            <div className="bg-slate-800 p-2 sm:p-4 rounded-xl shadow-2xl">
-               <h2 className="text-2xl font-semibold mb-4 text-sky-400 px-4 pt-2">Generated Resume</h2>
+              </div>
+            )}
+            {resumeData && !isLoadingResume && (
               <ResumePreview data={resumeData} template={selectedTemplate} fontGroup={selectedFontGroup} />
-            </div>
-          )}
-          
-          {isLoadingCoverLetter && (
-             <div className="flex flex-col items-center justify-center bg-slate-800 p-6 rounded-xl shadow-2xl min-h-[200px]">
-              <LoadingSpinner />
-              <p className="mt-4 text-lg text-slate-300">Generating cover letter...</p>
-            </div>
-          )}
-          {coverLetter && !isLoadingCoverLetter && (
-            <div className="bg-slate-800 p-6 rounded-xl shadow-2xl">
-              <h2 className="text-2xl font-semibold mb-4 text-sky-400">Generated Cover Letter</h2>
+            )}
+            {isLoadingCoverLetter && (
+              <div className="flex justify-center items-center p-10 bg-white rounded-lg shadow-md min-h-[400px]">
+                 <div className="text-center">
+                    <LoadingSpinner color="text-sky-500" />
+                    <p className="mt-2 text-gray-600">Writing your cover letter...</p>
+                </div>
+              </div>
+            )}
+            {coverLetter && !isLoadingCoverLetter && (
               <CoverLetterPreview letter={coverLetter} resumeName={resumeData?.name} />
-            </div>
-          )}
-           <footer className="text-center py-6 text-slate-500 text-sm">
-             Made with ❤️ by <a href="https://www.github.com/w3jdev" target="_blank" rel="noopener noreferrer" className="text-sky-400 hover:text-sky-300 underline">W3JDEV</a>
-          </footer>
+            )}
+             {!resumeData && !isLoadingResume && (
+                <div className="bg-white text-center p-12 rounded-lg shadow-md border-2 border-dashed border-gray-300 min-h-[500px] flex items-center justify-center">
+                    <p className="text-gray-500">Your generated resume will appear here.</p>
+                </div>
+             )}
+          </div>
         </div>
-      </div>
+      </main>
     </div>
   );
 };
