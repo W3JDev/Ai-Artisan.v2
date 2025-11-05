@@ -332,7 +332,7 @@ const App = () => {
               </div>
             )}
             {coverLetter && !isLoadingCoverLetter && (
-              <CoverLetterPreview letter={coverLetter} resumeName={resumeData?.name} />
+              <CoverLetterPreview letter={coverLetter} resumeData={resumeData} />
             )}
              {!resumeData && !isLoadingResume && (
                 <div className="bg-white text-center p-12 rounded-lg shadow-md border-2 border-dashed border-gray-300 min-h-[500px] flex items-center justify-center">
