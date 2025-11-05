@@ -1,6 +1,3 @@
-
-
-
 import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
 import type { ResumeData, TailoringStrength, JobMatchAnalysis, CoverLetterTone } from '../types';
 
@@ -11,10 +8,8 @@ if (!process.env.API_KEY) {
 }
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
-const RESUME_MODEL_NAME = "gemini-2.5-flash";
-const COVER_LETTER_MODEL_NAME = "gemini-2.5-flash";
-const SUGGESTION_MODEL_NAME = "gemini-2.5-flash";
-const INTERVIEW_PREP_MODEL_NAME = "gemini-2.5-flash";
+const RESUME_MODEL_NAME = "gemini-2.5-pro"; // Powerful model for complex analysis and generation with thinking.
+const FAST_MODEL_NAME = "gemini-2.5-flash"; // Fast model for suggestions, cover letters, and interview questions.
 
 
 function parseJsonFromText(text: string): any {
@@ -155,6 +150,7 @@ export async function generateResumeFromText(
       config: {
         responseMimeType: "application/json",
         temperature: 0.3, 
+        thinkingConfig: { thinkingBudget: 32768 }, // Enable thinking mode for complex resume analysis.
       },
     });
     
@@ -212,7 +208,7 @@ export async function generateCoverLetterStream(resumeData: ResumeData, jobDescr
 
   try {
     const response = await ai.models.generateContentStream({
-      model: COVER_LETTER_MODEL_NAME,
+      model: FAST_MODEL_NAME,
       contents: prompt,
       config: {
         temperature: 0.7, 
@@ -263,7 +259,7 @@ export async function getSuggestionForGap(currentResumeData: ResumeData, jobDesc
 
   try {
     const response: GenerateContentResponse = await ai.models.generateContent({
-      model: SUGGESTION_MODEL_NAME,
+      model: FAST_MODEL_NAME,
       contents: prompt,
       config: {
         temperature: 0.5,
@@ -318,7 +314,7 @@ export async function generateInterviewQuestions(resumeData: ResumeData, jobDesc
     
     try {
         const response: GenerateContentResponse = await ai.models.generateContent({
-            model: INTERVIEW_PREP_MODEL_NAME,
+            model: FAST_MODEL_NAME,
             contents: prompt,
             config: {
                 responseMimeType: "application/json",

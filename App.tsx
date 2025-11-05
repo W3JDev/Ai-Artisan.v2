@@ -1,6 +1,6 @@
 
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { ResumeInput } from './components/ResumeInput';
 import { ResumePreview } from './components/ResumePreview';
 import { CoverLetterPreview } from './components/CoverLetterPreview';
@@ -86,6 +86,10 @@ const App = () => {
   const [isLoadingGapSuggestion, setIsLoadingGapSuggestion] = useState<boolean>(false);
   const [gapSuggestionError, setGapSuggestionError] = useState<string | null>(null);
 
+  // State and ref for applying suggestion UX
+  const [isApplyingSuggestion, setIsApplyingSuggestion] = useState<boolean>(false);
+  const resumePreviewRef = useRef<HTMLDivElement>(null);
+
   // Ensure body background is consistent with the app's theme
   useEffect(() => {
     document.body.classList.remove('bg-dark', 'text-gray-200', 'antialiased'); // Remove landing page styles
@@ -95,6 +99,21 @@ const App = () => {
         // document.body.classList.remove('bg-gray-100');
     }
   }, []);
+
+  // Effect to scroll to the resume preview after a suggestion is applied
+  useEffect(() => {
+    if (isApplyingSuggestion) {
+      // Success case: data is loaded and no longer loading
+      if (resumeData && !isLoadingResume) {
+        resumePreviewRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        setIsApplyingSuggestion(false); // Reset after scrolling
+      } 
+      // Error case: an error occurred and no longer loading
+      else if (error && !isLoadingResume) {
+        setIsApplyingSuggestion(false); // Reset on error as well
+      }
+    }
+  }, [resumeData, isLoadingResume, isApplyingSuggestion, error]);
 
 
   const handleGenerateResume = useCallback(async (
@@ -218,6 +237,7 @@ const App = () => {
       setGapSuggestionError("Cannot apply suggestion: missing context or resume details.");
       return;
     }
+    setIsApplyingSuggestion(true); // Set flag to indicate this specific action
     // Call handleGenerateResume with the suggestion context
     await handleGenerateResume({ originalGap: selectedGap.text, aiSuggestion: gapSuggestion });
   }, [selectedGap, gapSuggestion, rawText, jobDescriptionUsedForLastResume, handleGenerateResume]);
@@ -375,10 +395,12 @@ const App = () => {
                                             </blockquote>
                                             <div className="flex space-x-3 pt-2">
                                                 <button
-                                                    onClick={handleApplySuggestion}
-                                                    className="px-4 py-2 text-sm font-medium rounded-md text-white bg-sky-600 hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500 transition-colors"
+                                                  onClick={handleApplySuggestion}
+                                                  disabled={isLoadingResume}
+                                                  className="px-4 py-2 text-sm font-medium rounded-md text-white bg-sky-600 hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500 transition-colors flex items-center justify-center disabled:bg-sky-400 disabled:cursor-not-allowed"
                                                 >
-                                                    Apply Suggestion
+                                                  {isLoadingResume && isApplyingSuggestion ? <LoadingSpinner size="h-5 w-5 mr-2" /> : null}
+                                                  {isLoadingResume && isApplyingSuggestion ? 'Applying...' : 'Apply Suggestion'}
                                                 </button>
                                                 <button
                                                     onClick={dismissGapSuggestion}
@@ -432,7 +454,9 @@ const App = () => {
               </div>
             )}
             {resumeData && !isLoadingResume && (
-              <ResumePreview data={resumeData} template={selectedTemplate} fontGroup={selectedFontGroup} />
+              <div ref={resumePreviewRef}>
+                <ResumePreview data={resumeData} template={selectedTemplate} fontGroup={selectedFontGroup} />
+              </div>
             )}
             {isLoadingCoverLetter && (
               <div className="flex justify-center items-center p-10 bg-white rounded-lg shadow-md min-h-[400px]">

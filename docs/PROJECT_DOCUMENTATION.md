@@ -1,4 +1,3 @@
-
 # AI Resume Artisan - Detailed Project Documentation
 
 **Version:** 1.0
@@ -25,13 +24,8 @@
 *   **AI Provider:** Google Gemini API.
 *   **SDK:** `@google/genai` (specifically version `^1.4.0` as per import map). This SDK is used for all interactions with the Gemini models.
 *   **Gemini Models Used:**
-    *   `gemini-2.5-flash-preview-04-17`: This model is utilized for:
-        *   Parsing raw text and generating structured resume data (`ResumeData` JSON).
-        *   Analyzing job descriptions to tailor resume content.
-        *   Providing `tailoringKeywords` and `tailoringStrength`.
-        *   Conducting `jobMatchAnalysis` (score, strengths, gaps).
-        *   Generating suggestions to address identified resume gaps (`getSuggestionForGap`).
-        *   Generating cover letter content (`generateCoverLetter`).
+    *   **`gemini-2.5-pro`**: This is our most powerful model, used for the core resume generation and analysis (`generateResumeFromText`). It is configured with `thinkingBudget` to handle the complexity of parsing, structuring, tailoring, and analyzing content.
+    *   **`gemini-2.5-flash`**: This fast and efficient model is used for generating cover letters (`generateCoverLetterStream`), providing quick gap suggestions (`getSuggestionForGap`), and creating interview questions, where speed is important for a good user experience.
 *   **API Key Management:** The Google Gemini API key is **strictly** sourced from the environment variable `process.env.API_KEY`. The application code (`services/geminiService.ts`) directly uses this variable to initialize the `GoogleGenAI` client. **There is no UI or mechanism within the application for users to input or manage the API key.**
 
 ### 2.3. PDF Generation
@@ -46,7 +40,7 @@
 2.  On actions like "Generate Resume" or "Get Suggestion," frontend components (`App.tsx`) call asynchronous functions in `services/geminiService.ts`.
 3.  `services/geminiService.ts` constructs specific prompts and sends requests to the Google Gemini API using the `@google/genai` SDK.
 4.  The Gemini API processes the prompt and returns a response (JSON for resume data, plain text for cover letters and suggestions).
-5.  `services/geminiService.ts` parses the API response. For JSON, it includes a step to clean potential markdown fences (e.g., \`\`\`json ... \`\`\`) before parsing.
+5.  `services/geminiService.ts` parses the API response. For JSON, it includes a step to clean potential markdown fences (e.g., \`\`\`json ... \`\`\`).
 6.  The parsed data or text is returned to `App.tsx`, which updates the application state.
 7.  React re-renders the UI to display the generated content, insights, or error messages.
 8.  For PDF downloads, `utils/downloadUtils.ts` uses `html2canvas` (for resume) and `jspdf` to create and trigger the download of PDF files.
@@ -61,6 +55,10 @@ The core intelligence of AI Resume Artisan stems from its interaction with the G
     *   The AI is instructed to act as an "expert resume writer, ATS optimization specialist, and career analyst."
     *   A detailed TypeScript interface for `ResumeData` is embedded in the prompt to enforce a structured JSON output. This interface includes fields for personal details, summary, experience, education, skills, and critically, fields for AI-driven analysis like `tailoringKeywords`, `tailoringStrength`, and `jobMatchAnalysis`.
     *   The prompt emphasizes conciseness (one-page limit), ATS-friendliness, professional tone, use of action verbs, and quantification of achievements.
+*   **Model & Configuration:**
+    *   Uses the `gemini-2.5-pro` model to handle the complex nature of this task.
+    *   The API call is configured with a high `thinkingBudget` to allow the model to perform deeper analysis and reasoning, resulting in higher quality, more tailored resume content.
+    *   A `temperature` of `0.3` is used to encourage more deterministic and factual output for resume data.
 *   **Inputs:**
     *   `rawText`: Unstructured resume information from the user.
     *   `jobDescription` (optional): If provided, it's included in the prompt for tailoring and analysis.
@@ -76,17 +74,19 @@ The core intelligence of AI Resume Artisan stems from its interaction with the G
             *   `strengths`: 2-3 bullet points on strong alignment areas.
             *   `gaps`: 2-3 bullet points on areas needing improvement or missing elements.
     *   The function uses `responseMimeType: "application/json"` in the API call and includes a `parseJsonFromText` utility to handle potential markdown code fences around the JSON output from the AI.
-    *   A `temperature` of `0.3` is used to encourage more deterministic and factual output for resume data.
 
-### 3.2. Cover Letter Generation (`generateCoverLetter`)
+### 3.2. Cover Letter Generation (`generateCoverLetterStream`)
 
 *   **Prompt Engineering:**
     *   The AI is instructed to act as an "expert career advisor and professional writer."
     *   The prompt includes a summary of the generated resume (`resumeData.name`, `jobTitle`, `summary`, `skills`, top experience) and the full `jobDescription` (if provided).
     *   Instructions guide the AI to write a concise (3-4 paragraphs), professional cover letter, highlighting 2-3 relevant skills/experiences, expressing enthusiasm, and including a call to action.
+*   **Model & Configuration:**
+    *   Uses the `gemini-2.5-flash` model for fast, streaming text generation.
+    *   A `temperature` of `0.7` is used to allow for more creativity in writing style while maintaining professionalism.
 *   **Input:** `ResumeData` object, optional `jobDescription` string.
-*   **Output:** Plain text string representing the cover letter.
-*   A `temperature` of `0.7` is used to allow for more creativity in writing style while maintaining professionalism.
+*   **Output:** A stream of plain text chunks representing the cover letter.
+
 
 ### 3.3. Gap Suggestion Generation (`getSuggestionForGap`)
 
@@ -94,9 +94,11 @@ The core intelligence of AI Resume Artisan stems from its interaction with the G
     *   The AI acts as an "AI career assistant" reviewing the resume against a job description for a specific identified gap.
     *   Context provided includes a summary of the current resume, the full job description, and the specific `gapDescription` text.
     *   The AI is asked for ONE concise, actionable suggestion (1-2 sentences) to address the specific gap, focusing on practical improvements to the existing resume structure.
+*   **Model & Configuration:**
+    *   Uses the `gemini-2.5-flash` model for a quick response time, which is crucial for this interactive feature.
+    *   A `temperature` of `0.5` is used for a balance between focused advice and slight creativity.
 *   **Input:** `currentResumeData` (ResumeData object), `jobDescription` (string), `gapDescription` (string).
 *   **Output:** Plain text string containing the AI's suggestion.
-*   A `temperature` of `0.5` is used for a balance between focused advice and slight creativity.
 
 ### 3.4. API Error Handling
 
@@ -190,7 +192,7 @@ This is a key differentiator, providing users with actionable insights. These se
 ## 5. Tech Stack (Summary)
 
 *   **Frontend:** React (v19), TypeScript, Tailwind CSS
-*   **AI Engine:** Google Gemini API (Model: `gemini-2.5-flash-preview-04-17`)
+*   **AI Engine:** Google Gemini API (Models: `gemini-2.5-pro`, `gemini-2.5-flash`)
 *   **AI SDK:** `@google/genai` (v1.4.0)
 *   **PDF Generation:** `jspdf` (v2.5.1), `html2canvas` (v1.4.1)
 *   **Development Environment:** Assumes Node.js/npm (for type checking, linting, local dev servers if used), relies on `process.env.API_KEY` being set for API access. Deployed as static assets with ES Module imports from CDNs.
@@ -286,5 +288,4 @@ The application primarily operates on a single-page interface with dynamic secti
 *   **`metadata.json`:** Standard metadata file for the application, including name, description, and permissions (currently none requested).
 
 This detailed documentation should provide a solid understanding of AI Resume Artisan's architecture, functionality, and technical implementation.
-Fill `[Current Date]` with today's date when finalizing.
-    
+Fill `[Current Date]` with today's date when finalizing.]]

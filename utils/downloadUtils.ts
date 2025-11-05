@@ -16,6 +16,7 @@ export async function downloadResumeAsPdf(element: HTMLElement, resumeName: stri
 
   try {
     // Use a higher scale for better resolution, crucial for text clarity.
+    // This renders the entire element content onto a single, tall canvas.
     const canvas = await html2canvas(element, {
       scale: 2.5, 
       useCORS: true,
@@ -35,27 +36,26 @@ export async function downloadResumeAsPdf(element: HTMLElement, resumeName: stri
     const canvasWidth = canvas.width;
     const canvasHeight = canvas.height;
 
-    // Calculate the total height of the canvas content when rendered in the PDF
-    const canvasAspectRatio = canvasHeight / canvasWidth;
-    const totalPdfHeight = pagePrintableWidth * canvasAspectRatio;
-
-    // Calculate the height of one PDF page in terms of canvas pixels
+    // Calculate the height of one PDF page in terms of canvas pixels, maintaining aspect ratio.
     const pdfToCanvasHeightRatio = canvasWidth / pagePrintableWidth;
     const onePageCanvasHeight = pagePrintableHeight * pdfToCanvasHeightRatio;
 
     let canvasYPosition = 0;
-    let pageCount = 1;
 
-    // Loop through the canvas, creating a new PDF page for each vertical slice of the content
+    // Loop through the tall canvas, slicing it into page-sized chunks for the PDF.
+    // NOTE: This method can cause content (like a line of text) to be clipped if it
+    // falls directly on a page break. This is a known limitation of rendering HTML
+    // to a canvas for multi-page PDF generation. The logic ensures all content is
+    // included, but does not prevent splitting elements in awkward places.
     while (canvasYPosition < canvasHeight) {
-      if (pageCount > 1) {
+      if (canvasYPosition > 0) { // Add a new page for all but the first slice
         pdf.addPage();
       }
 
-      // Determine the height of the slice for the current page
+      // Determine the height of the canvas slice for the current page
       const sliceHeight = Math.min(onePageCanvasHeight, canvasHeight - canvasYPosition);
 
-      // Create a temporary canvas to hold the slice
+      // Create a temporary canvas to hold just the slice for the current page
       const pageCanvas = document.createElement('canvas');
       pageCanvas.width = canvasWidth;
       pageCanvas.height = sliceHeight;
@@ -91,7 +91,6 @@ export async function downloadResumeAsPdf(element: HTMLElement, resumeName: stri
       }
       
       canvasYPosition += sliceHeight;
-      pageCount++;
     }
     
     const safeResumeName = resumeName.replace(/\s+/g, '_') || 'Resume';

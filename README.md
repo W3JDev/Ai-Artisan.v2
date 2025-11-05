@@ -1,4 +1,3 @@
-
 # AI Resume Artisan
 
 [![AI Resume Artisan Logo](https://via.placeholder.com/150/0ea5e9/ffffff?text=AI+Resume+Artisan)](https://example.com/live-demo) <!-- Replace with actual logo and live demo link if available -->
@@ -34,9 +33,8 @@
     *   Tailwind CSS
 *   **AI Engine & Services:**
     *   **Google Gemini API** (via `@google/genai` SDK)
-        *   Resume Generation & Analysis Model: `gemini-2.5-flash-preview-04-17`
-        *   Cover Letter Generation Model: `gemini-2.5-flash-preview-04-17`
-        *   Gap Suggestion Model: `gemini-2.5-flash-preview-04-17`
+        *   Resume Generation & Analysis Model: `gemini-2.5-pro` (utilizing Thinking Mode for complex tasks)
+        *   Cover Letter & Suggestions Model: `gemini-2.5-flash` (for speed and efficiency)
 *   **PDF Generation:**
     *   `jsPDF`
     *   `html2canvas`
@@ -97,5 +95,4 @@ AI-generated content is a powerful tool, but it's essential to review and person
 
 ## License
 
-[Specify the project's license, e.g., MIT, Apache 2.0. If not decided, can state "License to be determined."]
-
+[Specify the project's license, e.g., MIT, Apache 2.0. If not decided, can state "License to be determined."]]

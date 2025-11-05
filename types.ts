@@ -1,5 +1,5 @@
 
-export type TemplateName = 'classic' | 'modern-compact';
+export type TemplateName = 'classic' | 'modern-compact' | 'modern-alt';
 export type FontGroupName = 'sans-serif' | 'serif';
 export type TailoringStrength = 'Excellent' | 'Good' | 'Fair';
 export type CoverLetterTone = 'professional' | 'enthusiastic' | 'formal';

@@ -1,4 +1,3 @@
-
 # AI Resume Artisan - Client Presentation Outline & Key Talking Points
 
 **Overall Goal:** To convince the audience of the value, innovation, and effectiveness of AI Resume Artisan, leading to potential adoption, investment, or partnership.
@@ -81,7 +80,7 @@
 
 *   **Slide Title Idea:** Powered by Advanced AI / Under the Hood
 *   **Key Talking Points:**
-    *   Leverages **Google's Gemini API** (specifically `gemini-2.5-flash-preview-04-17`).
+    *   Leverages **Google's Gemini API**, specifically the powerful `gemini-2.5-pro` model for complex analysis and the fast `gemini-2.5-flash` model for generative tasks.
     *   Explain (at a high level) how the AI is used for:
         *   Natural Language Understanding (parsing raw input).
         *   Content Generation (writing resume sections, cover letters).
@@ -183,4 +182,4 @@
 *   **Tell a Story:** Frame the presentation around the problem, solution, and benefits.
 *   **Be Enthusiastic:** Your passion for the project is contagious.
 *   **Practice:** Especially the demo, if you include one.
-*   **Time Management:** Stick to allocated times for each section.
+*   **Time Management:** Stick to allocated times for each section.]]

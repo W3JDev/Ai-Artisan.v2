@@ -1,4 +1,3 @@
-
 # AI Resume Artisan - Project Rationale & Unique Value Proposition
 
 ## 1. Introduction
@@ -32,7 +31,7 @@ AI Resume Artisan fills this gap by acting as an intelligent assistant, not just
 AI Resume Artisan distinguishes itself through a synergistic combination of advanced AI capabilities, user-centric design, and a focus on actionable outcomes.
 
 *   **Deep AI-Powered Content Generation & Tailoring:**
-    *   Utilizing Google's powerful `gemini-2.5-flash-preview-04-17` model, our application doesn't just fill templates. It actively parses, understands, restructures, and refines raw user input into professional, concise, and impactful resume content.
+    *   Utilizing Google's powerful `gemini-2.5-pro` model with its "thinking" capability, our application doesn't just fill templates. It actively parses, understands, restructures, and refines raw user input into professional, concise, and impactful resume content.
     *   When a job description is provided, the AI performs sophisticated **content tailoring**, strategically weaving in relevant keywords and concepts to align the resume with the employer's needs. This is reflected in the **`tailoringKeywords`** (showing the AI's focus) and **`tailoringStrength`** (assessing the quality of tailoring) outputs, providing transparency and insight.
 
 *   **Intelligent Job Match Analysis:**
@@ -68,4 +67,4 @@ Our vision is to continuously refine our AI models and features to offer even mo
 
 ## 6. Conclusion
 
-AI Resume Artisan is more than just a resume builder; it's an intelligent partner in the job search process. By uniquely combining advanced AI for content generation, in-depth analysis, and an actionable improvement cycle, we provide unparalleled value to users seeking to craft application materials that truly stand out and achieve results.
+AI Resume Artisan is more than just a resume builder; it's an intelligent partner in the job search process. By uniquely combining advanced AI for content generation, in-depth analysis, and an actionable improvement cycle, we provide unparalleled value to users seeking to craft application materials that truly stand out and achieve results.]]

@@ -17,16 +17,22 @@ const SectionTitleModern: React.FC<{ title: string }> = ({ title }) => (
   </h2>
 );
 
-const ContactDetail: React.FC<{ icon: React.ReactNode, text?: string, href?: string, template: 'classic' | 'modern-compact' }> = ({ icon, text, href, template }) => {
+const SectionTitleModernAlt: React.FC<{ title: string }> = ({ title }) => (
+  <h2 className="text-sm font-semibold tracking-wider uppercase text-sky-500 pb-1.5 mb-3 border-b-2 border-sky-500/30">
+    {title}
+  </h2>
+);
+
+const ContactDetail: React.FC<{ icon: React.ReactNode, text?: string, href?: string, template: 'classic' | 'modern-compact' | 'modern-alt' }> = ({ icon, text, href, template }) => {
   if (!text) return null;
   const textMarginClass = template === 'modern-compact' ? 'ml-2' : 'ml-1.5';
   const content = (
     <>
       {icon}
-      <span className={`${textMarginClass} ${template === 'modern-compact' ? 'group-hover:underline' : ''}`}>{text}</span>
+      <span className={`${textMarginClass} ${template === 'modern-compact' || template === 'modern-alt' ? 'group-hover:underline' : ''}`}>{text}</span>
     </>
   );
-  const baseClasses = `flex items-center group transition-colors ${template === 'modern-compact' ? 'text-gray-600 hover:text-accent' : 'text-gray-700 hover:text-accent'}`;
+  const baseClasses = `flex items-center group transition-colors ${template === 'modern-compact' || template === 'modern-alt' ? 'text-gray-600 hover:text-accent' : 'text-gray-700 hover:text-accent'}`;
 
   if (href) {
     return (
@@ -105,7 +111,11 @@ export const ResumePreview: React.FC<ResumePreviewProps> = ({ data, template, fo
     return `https://${urlCandidate}`;
   };
 
-  const SectionTitleComponent = template === 'modern-compact' ? SectionTitleModern : SectionTitleClassic;
+  const SectionTitleComponent = 
+    template === 'modern-compact' ? SectionTitleModern :
+    template === 'modern-alt' ? SectionTitleModernAlt :
+    SectionTitleClassic;
+
   const iconSize = template === 'modern-compact' ? "w-4 h-4" : "w-3.5 h-3.5";
   const commonButtonClasses = "p-2 bg-sky-600 text-white rounded-full hover:bg-sky-700 transition-colors focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2 print:hidden";
 
@@ -172,126 +182,221 @@ export const ResumePreview: React.FC<ResumePreviewProps> = ({ data, template, fo
       </div>
       
       <div id="resume-inner-content-for-pdf"> 
-        {/* Header */}
-        <div className={`text-center mb-4 ${template === 'modern-compact' ? 'modern-header pb-2' : 'classic-header'}`}>
-          <h1 className={`font-bold text-primary ${template === 'modern-compact' ? 'text-3xl' : 'text-2xl sm:text-3xl'}`}>{name.toUpperCase()}</h1>
-          {jobTitle && <p className={`font-medium ${template === 'modern-compact' ? 'text-lg text-accent' : 'text-md text-secondary'}`}>{jobTitle}</p>}
-        </div>
-        
-        {/* Contact Info */}
-        <div className={`flex flex-wrap justify-center items-center mb-4 pb-2 ${
-          template === 'modern-compact' 
-            ? 'gap-x-4 gap-y-2 modern-contact' 
-            : 'text-xs gap-x-3 gap-y-1 text-gray-600 border-b border-gray-300'
-        }`}>
-          {contact.email && <ContactDetail template={template} icon={<MailIcon className={iconSize}/>} text={contact.email} href={`mailto:${contact.email}`} />}
-          {contact.phone && <ContactDetail template={template} icon={<PhoneIcon className={iconSize}/>} text={contact.phone} href={`tel:${contact.phone}`} />}
-          {contact.location && <ContactDetail template={template} icon={<LocationMarkerIcon className={iconSize}/>} text={contact.location} />}
-          {contact.linkedin && <ContactDetail template={template} icon={<LinkedInIcon className={iconSize}/>} text={getDisplayUrl(contact.linkedin)} href={getFullUrl(contact.linkedin)} />}
-          {contact.portfolio && <ContactDetail template={template} icon={<GlobeAltIcon className={iconSize}/>} text="Portfolio" href={getFullUrl(contact.portfolio)} />}
-          {contact.website && !contact.portfolio && <ContactDetail template={template} icon={<GlobeAltIcon className={iconSize}/>} text="Website" href={getFullUrl(contact.website)} />}
-        </div>
+        {template === 'modern-alt' ? (
+          <>
+            {/* Header */}
+            <div className="text-center mb-6 pb-4 border-b-2 border-gray-200">
+              <h1 className="font-bold text-primary text-3xl tracking-wider">{name.toUpperCase()}</h1>
+              {jobTitle && <p className="font-medium text-lg text-secondary tracking-wide">{jobTitle}</p>}
+            </div>
 
-        {/* Summary */}
-        {summary && (
-          <section className="mb-4">
-            <SectionTitleComponent title="Summary" />
-            <p className="text-gray-700 text-justify">{linkifyText(summary)}</p>
-          </section>
-        )}
-
-        {/* Experience */}
-        {experience && experience.length > 0 && (
-          <section className="mb-4">
-            <SectionTitleComponent title="Experience" />
-            {experience.map((exp, index) => (
-              <div key={index} className={`last:mb-0 ${template === 'modern-compact' ? 'mb-4' : 'mb-3.5'}`}>
-                <div className="flex justify-between items-baseline">
-                   <h3 className={`font-bold text-primary ${template === 'modern-compact' ? 'text-base mb-1' : 'text-sm mb-0.5'}`}>{exp.role}</h3>
-                  <span className={`text-gray-500 font-medium whitespace-nowrap pl-2 ${template === 'modern-compact' ? 'text-sm' : 'text-xs'}`}>{exp.dates}</span>
-                </div>
-                <p className={`font-semibold italic ${template === 'modern-compact' ? 'text-sm text-gray-600 mb-1.5' : 'text-xs text-secondary mb-0.5'}`}>{exp.company}</p>
-                <ul className={`list-disc list-outside ml-3.5 text-gray-700 ${template === 'modern-compact' ? 'space-y-1.5' : 'space-y-1'}`}>
-                  {exp.responsibilities.map((resp, i) => (
-                    <li key={i} className="leading-normal">{linkifyText(resp.trim())}</li>
-                  ))}
-                </ul>
+            <div className="flex gap-x-8">
+              {/* Main Column (Left) */}
+              <div className="w-[68%]">
+                {summary && (
+                  <section className="mb-5">
+                    <SectionTitleComponent title="Professional Summary" />
+                    <p className="text-gray-700 text-justify">{linkifyText(summary)}</p>
+                  </section>
+                )}
+                {experience && experience.length > 0 && (
+                  <section className="mb-5">
+                    <SectionTitleComponent title="Work Experience" />
+                    {experience.map((exp, index) => (
+                      <div key={index} className="mb-4 last:mb-0">
+                        <div className="flex justify-between items-baseline">
+                          <h3 className="font-bold text-primary text-base">{exp.role}</h3>
+                          <span className="text-gray-500 font-medium text-xs whitespace-nowrap pl-2">{exp.dates}</span>
+                        </div>
+                        <p className="font-semibold italic text-sm text-secondary mb-1.5">{exp.company}</p>
+                        <ul className="list-disc list-outside ml-4 text-gray-700 space-y-1">
+                          {exp.responsibilities.map((resp, i) => <li key={i} className="leading-normal">{linkifyText(resp.trim())}</li>)}
+                        </ul>
+                      </div>
+                    ))}
+                  </section>
+                )}
+                {education && education.length > 0 && (
+                  <section>
+                    <SectionTitleComponent title="Education" />
+                    {education.map((edu, index) => (
+                      <div key={index} className="mb-3 last:mb-0">
+                        <div className="flex justify-between items-baseline">
+                          <h3 className="font-bold text-primary text-base">{edu.degree}</h3>
+                           <span className="text-gray-500 font-medium text-xs whitespace-nowrap pl-2">{edu.details}</span>
+                        </div>
+                        <p className="italic text-sm text-secondary">{edu.institution}</p>
+                      </div>
+                    ))}
+                  </section>
+                )}
               </div>
-            ))}
-          </section>
-        )}
-
-        {/* Education */}
-        {education && education.length > 0 && (
-          <section className="mb-4">
-            <SectionTitleComponent title="Education" />
-            {education.map((edu, index) => (
-              <div key={index} className={`last:mb-0 ${template === 'modern-compact' ? 'mb-3' : 'mb-2.5'}`}>
-                 <div className="flex justify-between items-baseline">
-                  <h3 className={`font-bold text-primary ${template === 'modern-compact' ? 'text-base' : 'text-sm'}`}>{edu.degree}</h3>
-                   <span className={`text-gray-500 font-medium whitespace-nowrap pl-2 ${template === 'modern-compact' ? 'text-sm' : 'text-xs'}`}>
-                     {edu.details.includes('Present') || edu.details.match(/\d{4}\s*-\s*\d{4}/) || (edu.details.match(/\d{4}/) && !edu.institution.includes(edu.details)) ? '' : edu.details.split('|')[0].trim()}
-                   </span>
-                </div>
-                <p className={`italic ${template === 'modern-compact' ? 'text-sm text-gray-600' : 'text-xs text-secondary'}`}>
-                  {edu.institution}
-                  {' '}
-                  {linkifyText(
-                    (edu.details.includes('|') ? 
-                    `| ${edu.details.split('|')[1].trim()}` : 
-                    (edu.details.includes('Present') || edu.details.match(/\d{4}\s*-\s*\d{4}/) || edu.details.match(/\d{4}/) ? edu.details : '')).trim()
+              {/* Sidebar Column (Right) */}
+              <div className="w-[32%] border-l-2 border-gray-200 pl-6">
+                  <section className="mb-5">
+                    <SectionTitleComponent title="Contact" />
+                    <div className="space-y-2 text-sm">
+                        {contact.email && <ContactDetail template={template} icon={<MailIcon className="w-4 h-4 mt-0.5"/>} text={contact.email} href={`mailto:${contact.email}`} />}
+                        {contact.phone && <ContactDetail template={template} icon={<PhoneIcon className="w-4 h-4 mt-0.5"/>} text={contact.phone} href={`tel:${contact.phone}`} />}
+                        {contact.location && <ContactDetail template={template} icon={<LocationMarkerIcon className="w-4 h-4 mt-0.5"/>} text={contact.location} />}
+                        {contact.linkedin && <ContactDetail template={template} icon={<LinkedInIcon className="w-4 h-4 mt-0.5"/>} text={getDisplayUrl(contact.linkedin)} href={getFullUrl(contact.linkedin)} />}
+                        {contact.portfolio && <ContactDetail template={template} icon={<GlobeAltIcon className="w-4 h-4 mt-0.5"/>} text="Portfolio" href={getFullUrl(contact.portfolio)} />}
+                        {contact.website && !contact.portfolio && <ContactDetail template={template} icon={<GlobeAltIcon className="w-4 h-4 mt-0.5"/>} text="Website" href={getFullUrl(contact.website)} />}
+                    </div>
+                  </section>
+                  {skills && skills.length > 0 && (
+                    <section className="mb-5">
+                      <SectionTitleComponent title="Skills" />
+                      <div className="flex flex-wrap gap-1.5">
+                        {skills.map((skill, index) => (
+                          <span key={index} className="inline-block bg-sky-100 text-sky-800 text-xs font-medium px-2.5 py-1 rounded-full">
+                            {linkifyText(skill.trim())}
+                          </span>
+                        ))}
+                      </div>
+                    </section>
                   )}
-                </p>
+                  {licensesCertifications && licensesCertifications.length > 0 && (
+                    <section>
+                      <SectionTitleComponent title="Certifications" />
+                      {licensesCertifications.map((cert, index) => (
+                        <div key={index} className="mb-3 last:mb-0">
+                          <h3 className="font-semibold text-primary text-sm">{linkifyText(cert.name)}</h3>
+                          <p className="italic text-xs text-secondary">{linkifyText(cert.issuer)}</p>
+                          {cert.date && <p className="text-xs text-gray-500">{cert.date}</p>}
+                        </div>
+                      ))}
+                    </section>
+                  )}
               </div>
-            ))}
-          </section>
-        )}
-        
-        {/* Licenses & Certifications */}
-        {licensesCertifications && licensesCertifications.length > 0 && (
-          <section className="mb-4">
-            <SectionTitleComponent title="Licenses & Certifications" />
-            {licensesCertifications.map((cert, index) => (
-              <div key={index} className={`last:mb-0 ${template === 'modern-compact' ? 'mb-2.5' : 'mb-2'}`}>
-                <div className="flex justify-between items-baseline">
-                  <h3 className={`font-semibold text-primary ${template === 'modern-compact' ? 'text-base' : 'text-sm'}`}>{linkifyText(cert.name)}</h3>
-                  {cert.date && <span className={`text-gray-500 whitespace-nowrap pl-2 ${template === 'modern-compact' ? 'text-sm' : 'text-xs'}`}>{cert.date}</span>}
-                </div>
-                <p className={`italic ${template === 'modern-compact' ? 'text-sm text-gray-600' : 'text-xs text-secondary'}`}>{linkifyText(cert.issuer)}</p>
-              </div>
-            ))}
-          </section>
-        )}
+            </div>
+             <div className="mt-6 pt-4 text-center text-xs text-gray-400 print:block border-t-2 border-gray-200">
+                {name.toUpperCase()} - Page 1 of 1
+            </div>
+          </>
+        ) : (
+          <>
+            {/* Header */}
+            <div className={`text-center mb-4 ${template === 'modern-compact' ? 'modern-header pb-2' : 'classic-header'}`}>
+              <h1 className={`font-bold text-primary ${template === 'modern-compact' ? 'text-3xl' : 'text-2xl sm:text-3xl'}`}>{name.toUpperCase()}</h1>
+              {jobTitle && <p className={`font-medium ${template === 'modern-compact' ? 'text-lg text-accent' : 'text-md text-secondary'}`}>{jobTitle}</p>}
+            </div>
+            
+            {/* Contact Info */}
+            <div className={`flex flex-wrap justify-center items-center mb-4 pb-2 ${
+              template === 'modern-compact' 
+                ? 'gap-x-4 gap-y-2 modern-contact' 
+                : 'text-xs gap-x-3 gap-y-1 text-gray-600 border-b border-gray-300'
+            }`}>
+              {contact.email && <ContactDetail template={template} icon={<MailIcon className={iconSize}/>} text={contact.email} href={`mailto:${contact.email}`} />}
+              {contact.phone && <ContactDetail template={template} icon={<PhoneIcon className={iconSize}/>} text={contact.phone} href={`tel:${contact.phone}`} />}
+              {contact.location && <ContactDetail template={template} icon={<LocationMarkerIcon className={iconSize}/>} text={contact.location} />}
+              {contact.linkedin && <ContactDetail template={template} icon={<LinkedInIcon className={iconSize}/>} text={getDisplayUrl(contact.linkedin)} href={getFullUrl(contact.linkedin)} />}
+              {contact.portfolio && <ContactDetail template={template} icon={<GlobeAltIcon className={iconSize}/>} text="Portfolio" href={getFullUrl(contact.portfolio)} />}
+              {contact.website && !contact.portfolio && <ContactDetail template={template} icon={<GlobeAltIcon className={iconSize}/>} text="Website" href={getFullUrl(contact.website)} />}
+            </div>
 
-        {/* Skills */}
-        {skills && skills.length > 0 && (
-          <section className={template === 'modern-compact' ? 'skills-modern' : ''}>
-            <SectionTitleComponent title="Skills" />
-            {template === 'modern-compact' ? (
-              <div className="flex flex-wrap">
-                {skills.map((skill, index) => (
-                  <span key={index} className="inline-block bg-sky-100 text-accent text-xs font-medium px-2.5 py-1 rounded-full mr-1.5 mb-1.5">
-                    {linkifyText(skill.trim())}
-                  </span>
-                ))}
-              </div>
-            ) : (
-              <p className="text-gray-700 flex flex-wrap">
-                {skills.map((skill, index) => (
-                  <React.Fragment key={index}>
-                    <span>{linkifyText(skill.trim())}</span>
-                    {index < skills.length - 1 && <span className="mx-2 text-gray-400">&bull;</span>}
-                  </React.Fragment>
-                ))}
-              </p>
+            {/* Summary */}
+            {summary && (
+              <section className="mb-4">
+                <SectionTitleComponent title="Summary" />
+                <p className="text-gray-700 text-justify">{linkifyText(summary)}</p>
+              </section>
             )}
-          </section>
-        )}
 
-        {/* Footer - Page Number */}
-        <div className={`mt-6 pt-2 text-center text-xs text-gray-400 print:block ${template === 'classic' ? 'border-t border-gray-300' : ''}`}>
-          {name.toUpperCase()} - Page 1 of 1
-        </div>
+            {/* Experience */}
+            {experience && experience.length > 0 && (
+              <section className="mb-4">
+                <SectionTitleComponent title="Experience" />
+                {experience.map((exp, index) => (
+                  <div key={index} className={`last:mb-0 ${template === 'modern-compact' ? 'mb-4' : 'mb-3.5'}`}>
+                    <div className="flex justify-between items-baseline">
+                       <h3 className={`font-bold text-primary ${template === 'modern-compact' ? 'text-base mb-1' : 'text-sm mb-0.5'}`}>{exp.role}</h3>
+                      <span className={`text-gray-500 font-medium whitespace-nowrap pl-2 ${template === 'modern-compact' ? 'text-sm' : 'text-xs'}`}>{exp.dates}</span>
+                    </div>
+                    <p className={`font-semibold italic ${template === 'modern-compact' ? 'text-sm text-gray-600 mb-1.5' : 'text-xs text-secondary mb-0.5'}`}>{exp.company}</p>
+                    <ul className={`list-disc list-outside ml-3.5 text-gray-700 ${template === 'modern-compact' ? 'space-y-1.5' : 'space-y-1'}`}>
+                      {exp.responsibilities.map((resp, i) => (
+                        <li key={i} className="leading-normal">{linkifyText(resp.trim())}</li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </section>
+            )}
+
+            {/* Education */}
+            {education && education.length > 0 && (
+              <section className="mb-4">
+                <SectionTitleComponent title="Education" />
+                {education.map((edu, index) => (
+                  <div key={index} className={`last:mb-0 ${template === 'modern-compact' ? 'mb-3' : 'mb-2.5'}`}>
+                     <div className="flex justify-between items-baseline">
+                      <h3 className={`font-bold text-primary ${template === 'modern-compact' ? 'text-base' : 'text-sm'}`}>{edu.degree}</h3>
+                       <span className={`text-gray-500 font-medium whitespace-nowrap pl-2 ${template === 'modern-compact' ? 'text-sm' : 'text-xs'}`}>
+                         {edu.details.includes('Present') || edu.details.match(/\d{4}\s*-\s*\d{4}/) || (edu.details.match(/\d{4}/) && !edu.institution.includes(edu.details)) ? '' : edu.details.split('|')[0].trim()}
+                       </span>
+                    </div>
+                    <p className={`italic ${template === 'modern-compact' ? 'text-sm text-gray-600' : 'text-xs text-secondary'}`}>
+                      {edu.institution}
+                      {' '}
+                      {linkifyText(
+                        (edu.details.includes('|') ? 
+                        `| ${edu.details.split('|')[1].trim()}` : 
+                        (edu.details.includes('Present') || edu.details.match(/\d{4}\s*-\s*\d{4}/) || edu.details.match(/\d{4}/) ? edu.details : '')).trim()
+                      )}
+                    </p>
+                  </div>
+                ))}
+              </section>
+            )}
+            
+            {/* Licenses & Certifications */}
+            {licensesCertifications && licensesCertifications.length > 0 && (
+              <section className="mb-4">
+                <SectionTitleComponent title="Licenses & Certifications" />
+                {licensesCertifications.map((cert, index) => (
+                  <div key={index} className={`last:mb-0 ${template === 'modern-compact' ? 'mb-2.5' : 'mb-2'}`}>
+                    <div className="flex justify-between items-baseline">
+                      <h3 className={`font-semibold text-primary ${template === 'modern-compact' ? 'text-base' : 'text-sm'}`}>{linkifyText(cert.name)}</h3>
+                      {cert.date && <span className={`text-gray-500 whitespace-nowrap pl-2 ${template === 'modern-compact' ? 'text-sm' : 'text-xs'}`}>{cert.date}</span>}
+                    </div>
+                    <p className={`italic ${template === 'modern-compact' ? 'text-sm text-gray-600' : 'text-xs text-secondary'}`}>{linkifyText(cert.issuer)}</p>
+                  </div>
+                ))}
+              </section>
+            )}
+
+            {/* Skills */}
+            {skills && skills.length > 0 && (
+              <section className={template === 'modern-compact' ? 'skills-modern' : ''}>
+                <SectionTitleComponent title="Skills" />
+                {template === 'modern-compact' ? (
+                  <div className="flex flex-wrap">
+                    {skills.map((skill, index) => (
+                      <span key={index} className="inline-block bg-sky-100 text-accent text-xs font-medium px-2.5 py-1 rounded-full mr-1.5 mb-1.5">
+                        {linkifyText(skill.trim())}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-gray-700 flex flex-wrap">
+                    {skills.map((skill, index) => (
+                      <React.Fragment key={index}>
+                        <span>{linkifyText(skill.trim())}</span>
+                        {index < skills.length - 1 && <span className="mx-2 text-gray-400">&bull;</span>}
+                      </React.Fragment>
+                    ))}
+                  </p>
+                )}
+              </section>
+            )}
+            
+            <div className={`mt-6 pt-2 text-center text-xs text-gray-400 print:block ${template === 'classic' ? 'border-t border-gray-300' : ''}`}>
+              {name.toUpperCase()} - Page 1 of 1
+            </div>
+          </>
+        )}
       </div> 
 
        <style>
@@ -316,22 +421,28 @@ export const ResumePreview: React.FC<ResumePreviewProps> = ({ data, template, fo
           .template-modern-compact .modern-contact {
             border-bottom: 1px solid #e2e8f0; /* slate-200 */
           }
-          .template-modern-compact p {
+          .template-modern-compact p, .template-modern-alt p {
             font-size: 9.5pt; 
             line-height: 1.65; 
           }
-          .template-modern-compact li { 
+          .template-modern-compact li, .template-modern-alt li { 
             font-size: 9.5pt;
             line-height: 1.65;
           }
           .template-modern-compact.font-group-serif h1,
           .template-modern-compact.font-group-serif h2,
-          .template-modern-compact.font-group-serif h3 {
+          .template-modern-compact.font-group-serif h3,
+          .template-modern-alt.font-group-serif h1,
+          .template-modern-alt.font-group-serif h2,
+          .template-modern-alt.font-group-serif h3 {
             font-family: 'Merriweather', serif;
           }
            .template-modern-compact.font-group-sans-serif h1,
            .template-modern-compact.font-group-sans-serif h2,
-           .template-modern-compact.font-group-sans-serif h3 {
+           .template-modern-compact.font-group-sans-serif h3,
+           .template-modern-alt.font-group-sans-serif h1,
+           .template-modern-alt.font-group-sans-serif h2,
+           .template-modern-alt.font-group-sans-serif h3 {
             font-family: 'Lato', sans-serif;
           }
 

@@ -1,4 +1,3 @@
-
 # Hackathon Submission: AI Resume Artisan
 
 **Project Title:** AI Resume Artisan
@@ -62,7 +61,7 @@ AI Resume Artisan addresses these challenges by providing a comprehensive, AI-po
     *   **ES Modules & Import Maps**: Modern JavaScript module system, importing dependencies directly from CDNs (esm.sh).
 *   **AI Engine & Services:**
     *   **Google Gemini API**: Core intelligence provider.
-        *   **Model:** `gemini-2.5-flash-preview-04-17` used for all AI tasks (resume generation, analysis, cover letter, suggestions).
+        *   **Model Strategy:** `gemini-2.5-pro` is used for the complex resume generation and analysis, configured with "thinking mode" for superior results. For faster, auxiliary tasks like cover letter and suggestion generation, we use the efficient `gemini-2.5-flash` model.
     *   **`@google/genai` SDK (v1.4.0)**: Official SDK for all interactions with the Gemini API.
 *   **PDF Generation (Client-Side):**
     *   **`jspdf` (v2.5.1)**: For creating PDF documents.
@@ -86,7 +85,7 @@ AI Resume Artisan stands out due to:
 
 *   **Advanced Prompt Engineering:** Designing prompts for the Gemini API to:
     *   Reliably output structured JSON (`ResumeData`) adhering to a complex TypeScript interface.
-    *   Perform nuanced analytical tasks (tailoring assessment, job match scoring, gap identification) and include this analysis *within* the structured JSON.
+    *   Perform nuanced analytical tasks (tailoring assessment, job match scoring, gap identification) and include this analysis *within* the structured JSON, leveraging the `thinkingConfig` on `gemini-2.5-pro` for higher accuracy.
     *   Generate contextually relevant and actionable suggestions for specific resume gaps.
     *   Handle revision contexts effectively when a user applies a suggestion.
 *   **JSON Parsing Robustness:** Implementing `parseJsonFromText` to handle potential markdown fences (e.g., \`\`\`json ... \`\`\`) around the AI's JSON output.
@@ -149,4 +148,4 @@ AI Resume Artisan stands out due to:
     *   The core of our project is about boosting productivity by automating complex, time-consuming tasks. The AI handles the heavy lifting of writing, tailoring, and analysis, allowing users to focus on strategic aspects of their job search.
 
 ---
-Fill in `[Insert Your Team Name/Member Names Here]`, `[Link to your live deployed AI Resume Artisan application]`, `[Link to a short (2-5 minute) video...]`, and customize section 14 for specific hackathons.
+Fill in `[Insert Your Team Name/Member Names Here]`, `[Link to your live deployed AI Resume Artisan application]`, `[Link to a short (2-5 minute) video...]`, and customize section 14 for specific hackathons.]]

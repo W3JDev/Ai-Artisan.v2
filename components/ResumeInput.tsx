@@ -115,6 +115,7 @@ export const ResumeInput: React.FC<ResumeInputProps> = ({
           >
             <option value="classic">Classic</option>
             <option value="modern-compact">Modern Compact</option>
+            <option value="modern-alt">Modern Two-Column</option>
           </select>
         </div>
         <div>
