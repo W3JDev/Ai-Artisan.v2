@@ -2,6 +2,7 @@
 export type TemplateName = 'classic' | 'modern-compact';
 export type FontGroupName = 'sans-serif' | 'serif';
 export type TailoringStrength = 'Excellent' | 'Good' | 'Fair';
+export type CoverLetterTone = 'professional' | 'enthusiastic' | 'formal';
 
 export interface ContactInfo {
   email?: string;
@@ -66,6 +67,11 @@ export interface ResumeInputProps {
   onTemplateChange: (template: TemplateName) => void;
   selectedFontGroup: FontGroupName;
   onFontGroupChange: (fontGroup: FontGroupName) => void;
+  onTryExample: () => void;
+  coverLetterTone: CoverLetterTone;
+  onCoverLetterToneChange: (tone: CoverLetterTone) => void;
+  onGenerateInterviewQuestions: () => void;
+  isGeneratingInterviewQuestions: boolean;
 }
 
 // Props for ResumePreview component

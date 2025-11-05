@@ -1,13 +1,68 @@
 
+
 import React, { useState, useCallback, useEffect } from 'react';
 import { ResumeInput } from './components/ResumeInput';
 import { ResumePreview } from './components/ResumePreview';
 import { CoverLetterPreview } from './components/CoverLetterPreview';
-import { generateResumeFromText, generateCoverLetter, getSuggestionForGap } from './services/geminiService';
-import type { ResumeData, TemplateName, FontGroupName, TailoringStrength } from './types';
+import { generateResumeFromText, generateCoverLetterStream, getSuggestionForGap, generateInterviewQuestions } from './services/geminiService';
+import type { ResumeData, TemplateName, FontGroupName, TailoringStrength, CoverLetterTone } from './types';
 import { LoadingSpinner } from './components/LoadingSpinner';
 import { LightBulbIcon, XMarkIcon } from './components/icons'; 
 import { CheckBadgeIcon } from './components/icons'; // Assuming CheckBadgeIcon is available
+
+const SAMPLE_RAW_TEXT = `
+John Doe
+Senior Software Engineer
+john.doe@email.com | 555-123-4567 | linkedin.com/in/johndoe | San Francisco, CA
+
+Professional Summary
+Experienced Senior Software Engineer with over 8 years of expertise in designing, developing, and deploying scalable web applications. Proficient in JavaScript, React, Node.js, and cloud technologies. Passionate about building high-quality software and leading technical teams to success.
+
+Experience
+Tech Solutions Inc. - Senior Software Engineer | Jan 2018 - Present
+- Led the development of a new microservices architecture, improving system scalability by 50%.
+- Mentored a team of 4 junior engineers, fostering a culture of collaboration and code quality.
+- Developed and maintained a high-traffic e-commerce platform using React, Redux, and Node.js.
+- Implemented CI/CD pipelines using Jenkins and Docker, reducing deployment time by 75%.
+
+Web Innovators - Software Engineer | Jun 2015 - Dec 2017
+- Contributed to the development of a client-facing SaaS application.
+- Wrote clean, maintainable, and well-tested code.
+- Collaborated with product managers and designers to deliver new features.
+
+Education
+University of California, Berkeley - B.S. in Computer Science | 2011 - 2015
+
+Skills
+- Languages: JavaScript, TypeScript, Python
+- Frontend: React, Redux, HTML5, CSS3, Webpack
+- Backend: Node.js, Express, REST APIs
+- Databases: PostgreSQL, MongoDB
+- Cloud/DevOps: AWS, Docker, Jenkins, Kubernetes
+`;
+
+const SAMPLE_JOB_DESCRIPTION = `
+Job Title: Senior Frontend Engineer
+Location: San Francisco, CA
+
+We are looking for a passionate Senior Frontend Engineer to join our dynamic team. You will be responsible for building and maintaining our user-facing web applications.
+
+Responsibilities:
+- Develop new user-facing features using React.js.
+- Build reusable components and front-end libraries for future use.
+- Translate designs and wireframes into high-quality code.
+- Optimize components for maximum performance across a vast array of web-capable devices and browsers.
+- Work closely with product managers, designers, and other engineers.
+
+Qualifications:
+- 5+ years of professional experience in software development.
+- Strong proficiency in JavaScript, including DOM manipulation and the JavaScript object model.
+- Thorough understanding of React.js and its core principles.
+- Experience with popular React.js workflows (such as Flux or Redux).
+- Familiarity with modern front-end build pipelines and tools.
+- Experience with RESTful APIs.
+- Knowledge of modern authorization mechanisms, such as JSON Web Token.
+`;
 
 const App = () => {
   const [rawText, setRawText] = useState<string>('');
@@ -20,6 +75,10 @@ const App = () => {
   const [error, setError] = useState<string | null>(null);
   const [selectedTemplate, setSelectedTemplate] = useState<TemplateName>('classic');
   const [selectedFontGroup, setSelectedFontGroup] = useState<FontGroupName>('sans-serif');
+  const [coverLetterTone, setCoverLetterTone] = useState<CoverLetterTone>('professional');
+  const [interviewQuestions, setInterviewQuestions] = useState<string[] | null>(null);
+  const [isLoadingInterviewQuestions, setIsLoadingInterviewQuestions] = useState<boolean>(false);
+
 
   // State for gap suggestions
   const [selectedGap, setSelectedGap] = useState<{ text: string; index: number } | null>(null);
@@ -48,6 +107,7 @@ const App = () => {
     setIsLoadingResume(true);
     setError(null);
     setResumeData(null); 
+    setInterviewQuestions(null); // Reset interview questions on new resume
     if (!suggestionContext) { // Only reset these if not applying a suggestion
         setCoverLetter('');
         setJobDescriptionUsedForLastResume(jobDescription);
@@ -84,15 +144,42 @@ const App = () => {
     setError(null);
     setCoverLetter('');
     try {
-      const letter = await generateCoverLetter(resumeData, jobDescription);
-      setCoverLetter(letter);
+      const stream = await generateCoverLetterStream(resumeData, jobDescription, coverLetterTone);
+      for await (const chunk of stream) {
+        setCoverLetter((prev) => prev + chunk.text);
+      }
     } catch (err: any) { 
       console.error(err);
       setError(err instanceof Error ? err.message : 'Failed to generate cover letter.');
     } finally {
       setIsLoadingCoverLetter(false);
     }
-  }, [resumeData, jobDescription]);
+  }, [resumeData, jobDescription, coverLetterTone]);
+  
+  const handleGenerateInterviewQuestions = useCallback(async () => {
+    if (!resumeData || !jobDescriptionUsedForLastResume.trim()) {
+      setError('Please generate a resume with a job description first.');
+      return;
+    }
+    setIsLoadingInterviewQuestions(true);
+    setError(null);
+    setInterviewQuestions(null);
+    try {
+      const questions = await generateInterviewQuestions(resumeData, jobDescriptionUsedForLastResume);
+      setInterviewQuestions(questions);
+    } catch (err: any) {
+      console.error(err);
+      setError(err instanceof Error ? err.message : 'Failed to generate interview questions.');
+    } finally {
+      setIsLoadingInterviewQuestions(false);
+    }
+  }, [resumeData, jobDescriptionUsedForLastResume]);
+
+  const handleTryExample = useCallback(() => {
+    setRawText(SAMPLE_RAW_TEXT);
+    setJobDescription(SAMPLE_JOB_DESCRIPTION);
+  }, []);
+
 
   const handleGapClick = async (gapText: string, index: number) => {
     if (!resumeData || !jobDescriptionUsedForLastResume.trim()) return;
@@ -178,6 +265,11 @@ const App = () => {
                 onTemplateChange={setSelectedTemplate}
                 selectedFontGroup={selectedFontGroup}
                 onFontGroupChange={setSelectedFontGroup}
+                onTryExample={handleTryExample}
+                coverLetterTone={coverLetterTone}
+                onCoverLetterToneChange={setCoverLetterTone}
+                onGenerateInterviewQuestions={handleGenerateInterviewQuestions}
+                isGeneratingInterviewQuestions={isLoadingInterviewQuestions}
               />
             </div>
 
@@ -308,6 +400,25 @@ const App = () => {
                 )}
               </div>
             )}
+            {isLoadingInterviewQuestions && (
+              <div className="bg-white p-6 rounded-lg shadow-md text-gray-800 flex items-center justify-center">
+                  <LoadingSpinner color="text-sky-500" />
+                  <span className="ml-3 text-gray-600">Generating interview questions...</span>
+              </div>
+            )}
+            {interviewQuestions && !isLoadingInterviewQuestions && (
+                <div className="bg-white p-6 rounded-lg shadow-md text-gray-800 animate-fade-in-up">
+                    <h3 className="text-xl font-bold text-gray-800 mb-4">AI-Generated Interview Questions</h3>
+                    <ul className="space-y-3">
+                        {interviewQuestions.map((question, index) => (
+                            <li key={index} className="flex items-start p-3 bg-gray-50 rounded-md border-l-4 border-sky-500">
+                                <span className="font-semibold text-sky-700 mr-2">{index + 1}.</span>
+                                <p className="text-gray-700">{question}</p>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            )}
           </div>
 
           {/* Right Column: Previews */}
@@ -335,8 +446,18 @@ const App = () => {
               <CoverLetterPreview letter={coverLetter} resumeData={resumeData} />
             )}
              {!resumeData && !isLoadingResume && (
-                <div className="bg-white text-center p-12 rounded-lg shadow-md border-2 border-dashed border-gray-300 min-h-[500px] flex items-center justify-center">
-                    <p className="text-gray-500">Your generated resume will appear here.</p>
+                <div className="bg-white text-left p-8 rounded-lg shadow-md border-2 border-dashed border-gray-300 min-h-[500px] flex flex-col justify-center">
+                    <h3 className="text-2xl font-bold text-gray-700 mb-4 text-center">Welcome to AI Resume Artisan!</h3>
+                    <p className="text-gray-500 mb-6 text-center">Your generated resume will appear here once you provide your details.</p>
+                    <div className="bg-gray-50 p-6 rounded-lg border border-gray-200">
+                        <h4 className="font-semibold text-gray-800 mb-3">Quick Start Guide:</h4>
+                        <ol className="list-decimal list-inside space-y-2 text-gray-600">
+                            <li>Paste your resume details in the input field on the left.</li>
+                            <li>(Recommended) Add a job description to tailor your resume for a specific role.</li>
+                            <li>Click "Generate Resume" to see the magic happen!</li>
+                            <li>For a ready-made example, just click the "Try with an Example" button above.</li>
+                        </ol>
+                    </div>
                 </div>
              )}
           </div>

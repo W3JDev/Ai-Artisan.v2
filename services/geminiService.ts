@@ -1,7 +1,8 @@
 
 
+
 import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
-import type { ResumeData, TailoringStrength, JobMatchAnalysis } from '../types';
+import type { ResumeData, TailoringStrength, JobMatchAnalysis, CoverLetterTone } from '../types';
 
 if (!process.env.API_KEY) {
   // This check is mostly for development. In a bundled app, process.env might behave differently.
@@ -10,9 +11,10 @@ if (!process.env.API_KEY) {
 }
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
-const RESUME_MODEL_NAME = "gemini-2.5-flash-preview-04-17";
-const COVER_LETTER_MODEL_NAME = "gemini-2.5-flash-preview-04-17";
-const SUGGESTION_MODEL_NAME = "gemini-2.5-flash-preview-04-17";
+const RESUME_MODEL_NAME = "gemini-2.5-flash";
+const COVER_LETTER_MODEL_NAME = "gemini-2.5-flash";
+const SUGGESTION_MODEL_NAME = "gemini-2.5-flash";
+const INTERVIEW_PREP_MODEL_NAME = "gemini-2.5-flash";
 
 
 function parseJsonFromText(text: string): any {
@@ -167,7 +169,7 @@ export async function generateResumeFromText(
   }
 }
 
-export async function generateCoverLetter(resumeData: ResumeData, jobDescription?: string): Promise<string> {
+export async function generateCoverLetterStream(resumeData: ResumeData, jobDescription: string, tone: CoverLetterTone) {
   const resumeSummaryForPrompt = `
     Name: ${resumeData.name}
     ${resumeData.jobTitle ? `Title: ${resumeData.jobTitle}` : ''}
@@ -177,6 +179,12 @@ export async function generateCoverLetter(resumeData: ResumeData, jobDescription
     ${resumeData.experience.map(exp => `- ${exp.role} at ${exp.company} (${exp.dates})`).slice(0, 3).join('\n')}
   `;
 
+  const toneInstruction = {
+    professional: "Maintain a professional and formal tone throughout.",
+    enthusiastic: "Write with an enthusiastic and passionate tone, showing genuine excitement for the role.",
+    formal: "Adopt a very formal and respectful business letter tone."
+  };
+
   const prompt = `
     You are an expert career advisor and professional writer.
     Based on the following resume summary:
@@ -184,29 +192,33 @@ export async function generateCoverLetter(resumeData: ResumeData, jobDescription
     ${resumeSummaryForPrompt}
     --- END RESUME SUMMARY ---
 
-    ${jobDescription ? `And the following job description:\n--- JOB DESCRIPTION ---\n${jobDescription}\n--- END JOB DESCRIPTION ---` : ''}
+    And the following job description:
+    --- JOB DESCRIPTION ---
+    ${jobDescription}
+    --- END JOB DESCRIPTION ---
 
     Generate a compelling, professional, and concise cover letter.
-    The cover letter should:
-    1.  Be addressed generally (e.g., "Dear Hiring Manager,").
-    2.  Briefly introduce the candidate and the purpose of the letter.
-    3.  Highlight 2-3 key skills or experiences from the resume that are most relevant to the job description (if provided) or generally valuable.
-    4.  Express enthusiasm for the potential opportunity.
-    5.  Conclude with a call to action (e.g., expressing eagerness for an interview).
-    6.  Maintain a professional tone and standard business letter format.
-    7.  The entire output should be plain text for the cover letter. Do not include any meta-comments or JSON.
-    8.  Keep the cover letter concise, ideally 3-4 paragraphs.
+    Key instructions:
+    1.  **Tone:** ${toneInstruction[tone]}
+    2.  Address it generally (e.g., "Dear Hiring Manager,").
+    3.  Briefly introduce the candidate and the purpose of the letter.
+    4.  Highlight 2-3 key skills or experiences from the resume that are most relevant to the job description.
+    5.  Express enthusiasm for the potential opportunity, according to the specified tone.
+    6.  Conclude with a call to action (e.g., expressing eagerness for an interview).
+    7.  Maintain a standard business letter format.
+    8.  The entire output must be only the plain text for the cover letter. Do not include any meta-comments or JSON.
+    9.  Keep the cover letter concise, ideally 3-4 paragraphs.
   `;
 
   try {
-    const response: GenerateContentResponse = await ai.models.generateContent({
+    const response = await ai.models.generateContentStream({
       model: COVER_LETTER_MODEL_NAME,
       contents: prompt,
       config: {
         temperature: 0.7, 
       },
     });
-    return response.text.trim();
+    return response;
   } catch (error) {
     console.error("Error generating cover letter:", error);
     if (error instanceof Error && error.message.includes("API key not valid")) {
@@ -266,4 +278,65 @@ export async function getSuggestionForGap(currentResumeData: ResumeData, jobDesc
     // Corrected to use 'err' instead of 'error'
     throw new Error(`Failed to get suggestion from AI. Details: ${err instanceof Error ? err.message : String(err)}`);
   }
+}
+
+export async function generateInterviewQuestions(resumeData: ResumeData, jobDescription: string): Promise<string[]> {
+    const resumeContext = `
+    - Candidate Name: ${resumeData.name}
+    - Role applying for: ${resumeData.jobTitle || 'Not specified'}
+    - Key Skills: ${resumeData.skills.join(', ')}
+    - Summary of Experience: ${resumeData.experience.map(exp => `${exp.role} at ${exp.company}`).join('; ')}
+    `;
+
+    const prompt = `
+    You are an expert technical recruiter and career coach.
+    Based on the provided resume context and job description, generate a list of likely interview questions.
+
+    --- RESUME CONTEXT ---
+    ${resumeContext}
+    --- END RESUME CONTEXT ---
+
+    --- JOB DESCRIPTION ---
+    ${jobDescription}
+    --- END JOB DESCRIPTION ---
+
+    Your task is to create a list of 8-10 interview questions that cover:
+    1.  **Behavioral Questions:** Probing into past experiences, teamwork, and problem-solving skills mentioned in the resume.
+    2.  **Technical/Situational Questions:** Directly related to the key skills and responsibilities listed in the job description and reflected in the candidate's skills.
+    3.  **Resume-Specific Questions:** Asking for more detail on specific projects or roles mentioned in the resume summary.
+
+    Your output MUST be a valid JSON array of strings. Each string in the array should be a single interview question.
+    Example format:
+    [
+        "Can you tell me about a challenging project you worked on at [Previous Company]?",
+        "How would you approach designing a system that does X, given your experience with Y technology?",
+        "Describe a time you had a conflict with a team member and how you resolved it."
+    ]
+
+    Output JSON Only: Ensure the entire response is ONLY the JSON array.
+    `;
+    
+    try {
+        const response: GenerateContentResponse = await ai.models.generateContent({
+            model: INTERVIEW_PREP_MODEL_NAME,
+            contents: prompt,
+            config: {
+                responseMimeType: "application/json",
+                temperature: 0.5,
+            },
+        });
+        
+        const parsed = parseJsonFromText(response.text);
+        if (Array.isArray(parsed) && parsed.every(item => typeof item === 'string')) {
+            return parsed as string[];
+        }
+        throw new Error("AI returned data in an unexpected format.");
+
+    } catch (error) {
+        console.error("Error generating interview questions:", error);
+        if (error instanceof Error && error.message.includes("API key not valid")) {
+            throw new Error("Invalid API Key. Please check your API_KEY environment variable.");
+        }
+        throw new Error(`Failed to generate interview questions from AI. Details: ${error instanceof Error ? error.message : String(error)}`);
+    }
 }
