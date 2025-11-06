@@ -1,12 +1,17 @@
+
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
-import type { ResumeData } from '../types'; 
 
 // A4 page dimensions in mm
 const A4_WIDTH_MM = 210;
 const A4_HEIGHT_MM = 297;
-const MARGIN_MM = 15; // Increased margin for better aesthetics and to prevent clipping.
+const MARGIN_MM = 15;
 
+/**
+ * Downloads a rendered HTML element as a multi-page PDF document.
+ * @param element The HTML element to be captured for the PDF.
+ * @param resumeName The base name for the downloaded PDF file.
+ */
 export async function downloadResumeAsPdf(element: HTMLElement, resumeName: string): Promise<void> {
   if (!element) {
     console.error('Resume content element not found for PDF generation.');
@@ -14,15 +19,21 @@ export async function downloadResumeAsPdf(element: HTMLElement, resumeName: stri
     return;
   }
 
+  // Add a class to disable shadows and transitions for a cleaner capture.
+  element.classList.add('pdf-capturing');
+
   try {
-    // Use a higher scale for better resolution, crucial for text clarity.
-    // This renders the entire element content onto a single, tall canvas.
-    const canvas = await html2canvas(element, {
-      scale: 2.5, 
+    // Generate a high-resolution canvas from the HTML element.
+    // A higher scale (e.g., 3) improves text clarity in the final PDF.
+    const fullContentCanvas = await html2canvas(element, {
+      scale: 3,
       useCORS: true,
       logging: false,
       backgroundColor: '#ffffff',
     });
+    
+    // Remove the temporary class after capture is complete.
+    element.classList.remove('pdf-capturing');
 
     const pdf = new jsPDF({
       orientation: 'portrait',
@@ -30,41 +41,43 @@ export async function downloadResumeAsPdf(element: HTMLElement, resumeName: stri
       format: 'a4',
     });
 
-    const pagePrintableWidth = A4_WIDTH_MM - MARGIN_MM * 2;
-    const pagePrintableHeight = A4_HEIGHT_MM - MARGIN_MM * 2;
+    const pageContentWidth = A4_WIDTH_MM - MARGIN_MM * 2;
+    const pageContentHeight = A4_HEIGHT_MM - MARGIN_MM * 2;
 
-    const canvasWidth = canvas.width;
-    const canvasHeight = canvas.height;
+    const canvasWidth = fullContentCanvas.width;
+    const canvasHeight = fullContentCanvas.height;
 
-    // Calculate the height of one PDF page in terms of canvas pixels, maintaining aspect ratio.
-    const pdfToCanvasHeightRatio = canvasWidth / pagePrintableWidth;
-    const onePageCanvasHeight = pagePrintableHeight * pdfToCanvasHeightRatio;
+    // The logic maintains the aspect ratio of the captured content.
+    // We calculate the scale factor between the canvas width and the PDF's printable width.
+    const canvasToPdfScale = pageContentWidth / canvasWidth;
+
+    // Using this scale, we can determine how much of the canvas's height fits onto one PDF page.
+    const onePageCanvasHeight = pageContentHeight / canvasToPdfScale;
 
     let canvasYPosition = 0;
 
-    // Loop through the tall canvas, slicing it into page-sized chunks for the PDF.
+    // Loop through the tall canvas, slicing it into page-sized chunks.
     // NOTE: This method can cause content (like a line of text) to be clipped if it
-    // falls directly on a page break. This is a known limitation of rendering HTML
-    // to a canvas for multi-page PDF generation. The logic ensures all content is
-    // included, but does not prevent splitting elements in awkward places.
+    // falls directly on a page break. This is a known limitation of this client-side
+    // HTML-to-PDF approach. The margin helps, but cannot fully prevent it.
     while (canvasYPosition < canvasHeight) {
       if (canvasYPosition > 0) { // Add a new page for all but the first slice
         pdf.addPage();
       }
 
-      // Determine the height of the canvas slice for the current page
+      // Determine the height of the canvas slice for the current page.
       const sliceHeight = Math.min(onePageCanvasHeight, canvasHeight - canvasYPosition);
 
-      // Create a temporary canvas to hold just the slice for the current page
+      // Create a temporary canvas to hold just the slice for the current page.
       const pageCanvas = document.createElement('canvas');
       pageCanvas.width = canvasWidth;
       pageCanvas.height = sliceHeight;
       const pageCtx = pageCanvas.getContext('2d');
 
       if (pageCtx) {
-         // Draw the slice from the main canvas onto the temporary canvas
+        // Draw the slice from the main canvas onto the temporary page canvas.
         pageCtx.drawImage(
-          canvas,
+          fullContentCanvas,
           0, // sourceX
           canvasYPosition, // sourceY
           canvasWidth, // sourceWidth
@@ -75,17 +88,18 @@ export async function downloadResumeAsPdf(element: HTMLElement, resumeName: stri
           sliceHeight  // destHeight
         );
 
-        const pageImgData = pageCanvas.toDataURL('image/png');
+        // Using PNG for lossless quality, which is ideal for text.
+        const pageImgData = pageCanvas.toDataURL('image/png', 1.0);
         
-        // Calculate the height of this specific image slice when placed in the PDF
-        const pdfImageHeight = (sliceHeight * pagePrintableWidth) / canvasWidth;
+        // Calculate the height of this specific image slice when placed in the PDF, maintaining aspect ratio.
+        const pdfImageHeight = sliceHeight * canvasToPdfScale;
         
         pdf.addImage(
           pageImgData,
           'PNG',
           MARGIN_MM, // x
           MARGIN_MM, // y
-          pagePrintableWidth, // width
+          pageContentWidth, // width
           pdfImageHeight // height
         );
       }
@@ -99,6 +113,8 @@ export async function downloadResumeAsPdf(element: HTMLElement, resumeName: stri
   } catch (error) {
     console.error('Error generating resume PDF:', error);
     alert('Failed to generate resume PDF. Please try again.');
+    // Ensure the class is removed even if an error occurs.
+    element.classList.remove('pdf-capturing');
   }
 }
 

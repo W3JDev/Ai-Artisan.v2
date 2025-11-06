@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import type { ResumePreviewProps, ContactInfo, ExperienceItem, EducationItem, CertificationItem } from '../types';
-import { MailIcon, PhoneIcon, LinkedInIcon, GlobeAltIcon, LocationMarkerIcon, DownloadIcon, ClipboardCopyIcon, CheckIcon, ShareIcon, TwitterXIcon } from './icons';
+import { MailIcon, PhoneIcon, LinkedInIcon, GlobeAltIcon, LocationMarkerIcon, DownloadIcon, ClipboardCopyIcon, CheckIcon, ShareIcon, TwitterXIcon, PrinterIcon } from './icons';
 import { downloadResumeAsPdf } from '../utils/downloadUtils';
 import { linkifyText, formatResumeDataAsText } from '../utils/textUtils';
 
@@ -49,6 +49,7 @@ export const ResumePreview: React.FC<ResumePreviewProps> = ({ data, template, fo
   const { name, jobTitle, contact, summary, experience, education, licensesCertifications, skills } = data;
   const [isCopied, setIsCopied] = useState(false);
   const [isShareMenuOpen, setIsShareMenuOpen] = useState(false);
+  const [isPrintFriendly, setIsPrintFriendly] = useState(false);
   const shareMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -117,15 +118,15 @@ export const ResumePreview: React.FC<ResumePreviewProps> = ({ data, template, fo
     SectionTitleClassic;
 
   const iconSize = template === 'modern-compact' ? "w-4 h-4" : "w-3.5 h-3.5";
-  const commonButtonClasses = "p-2 bg-sky-600 text-white rounded-full hover:bg-sky-700 transition-colors focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2 print:hidden";
+  const commonButtonClasses = "p-2 bg-sky-600 text-white rounded-full hover:bg-sky-700 transition-colors focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2";
 
 
   return (
     <div 
       id="resume-preview-content-area"
-      className={`bg-white text-gray-800 p-6 sm:p-8 shadow-resume text-[10pt] leading-relaxed A4-aspect-ratio-approx relative template-${template} font-group-${fontGroup}`}
+      className={`bg-white text-gray-800 p-6 sm:p-8 shadow-resume text-[10pt] leading-relaxed A4-aspect-ratio-approx relative template-${template} font-group-${fontGroup} ${isPrintFriendly ? 'print-friendly' : ''}`}
     >
-      <div className="absolute top-4 right-4 flex space-x-2">
+      <div className="absolute top-4 right-4 flex space-x-2 print:hidden print-hidden-in-view">
         <div className="relative" ref={shareMenuRef}>
             <button
               onClick={() => setIsShareMenuOpen(!isShareMenuOpen)}
@@ -169,6 +170,14 @@ export const ResumePreview: React.FC<ResumePreviewProps> = ({ data, template, fo
           className={`${commonButtonClasses} ${isCopied ? 'bg-green-500 hover:bg-green-600' : ''}`}
         >
           {isCopied ? <CheckIcon className="w-5 h-5" /> : <ClipboardCopyIcon className="w-5 h-5" />}
+        </button>
+        <button
+          onClick={() => setIsPrintFriendly(!isPrintFriendly)}
+          title={isPrintFriendly ? "Exit Print View" : "Enter Print View"}
+          aria-label={isPrintFriendly ? "Exit print-friendly view" : "Enter print-friendly view"}
+          className={`${commonButtonClasses} ${isPrintFriendly ? 'bg-red-500 hover:bg-red-600' : ''}`}
+        >
+          <PrinterIcon className="w-5 h-5" />
         </button>
         <button
           id="download-resume-pdf-button" 
@@ -401,6 +410,12 @@ export const ResumePreview: React.FC<ResumePreviewProps> = ({ data, template, fo
 
        <style>
         {`
+          .print-friendly .print-hidden-in-view {
+            display: none !important;
+          }
+          .print-friendly {
+            box-shadow: none !important;
+          }
           .A4-aspect-ratio-approx {
             width: 100%;
             max-width: 800px; 

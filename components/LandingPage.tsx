@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { InterestModal } from './InterestModal';
 import { 
@@ -11,56 +10,87 @@ import {
   GoogleIcon,
   MicrosoftIcon,
   AmazonIcon,
+  MailIcon,
+  PhoneIcon,
+  LocationMarkerIcon,
+  GlobeAltIcon,
 } from './icons';
 
 interface LandingPageProps {
   onInterestRegistered: () => void;
 }
 
-const AppScreenshotPreview: React.FC = () => {
+const RealisticResumePreview: React.FC = () => {
   return (
     <div className="hero-resume-preview group">
-      <div className="resume-3d-mockup w-full max-w-lg h-auto bg-white/5 backdrop-blur-xl border border-white/10 rounded-lg p-6 shadow-3d transition-all duration-500 ease-out group-hover:shadow-3d-hover group-hover:scale-[1.02]">
+      <div className="resume-3d-mockup w-full max-w-lg h-auto bg-white/10 backdrop-blur-xl border border-white/10 rounded-lg p-6 shadow-3d transition-all duration-500 ease-out group-hover:shadow-3d-hover group-hover:scale-[1.02]">
         {/* Header */}
-        <div className="text-center mb-4">
-          <div className="h-6 bg-slate-200/80 rounded w-4/5 mx-auto"></div>
-          <div className="h-4 bg-sky-400/60 rounded w-1/2 mx-auto mt-2"></div>
+        <div className="text-center mb-5 pb-3 border-b border-slate-400/20">
+          <div className="h-7 bg-slate-200/90 rounded w-3/4 mx-auto animate-pulse"></div>
+          <div className="h-4 bg-sky-400/70 rounded w-1/2 mx-auto mt-2.5"></div>
         </div>
-        {/* Contact */}
-        <div className="flex justify-center gap-x-4 mb-4 border-b border-slate-400/20 pb-2">
-          <div className="h-3 bg-slate-300/40 rounded w-1/4"></div>
-          <div className="h-3 bg-slate-300/40 rounded w-1/4"></div>
-          <div className="h-3 bg-slate-300/40 rounded w-1/4"></div>
-        </div>
-        {/* Summary */}
-        <div className="h-3 bg-sky-500/60 rounded w-1/4 mb-2"></div>
-        <div className="space-y-1.5">
-          {[...Array(2)].map((_, i) => <div key={i} className="h-2 bg-slate-300/30 rounded w-full"></div>)}
-          <div className="h-2 bg-slate-300/30 rounded w-5/6"></div>
-        </div>
-        {/* Experience */}
-        <div className="mt-5">
-          <div className="h-3 bg-sky-500/60 rounded w-1/3 mb-2.5"></div>
-          <div className="h-2.5 bg-slate-200/60 rounded w-3/5 mb-1"></div>
-          <div className="h-2 bg-slate-400/50 rounded w-2/5 mb-2"></div>
-          <div className="space-y-1.5 pl-4">
-            {[...Array(3)].map((_, i) => <div key={i} className="h-2 bg-slate-300/30 rounded w-full"></div>)}
+
+        <div className="flex gap-x-5">
+          {/* Main Column (Left) */}
+          <div className="w-[65%]">
+            {/* Summary Section */}
+            <div className="mb-5">
+              <div className="h-4 bg-sky-500/60 rounded w-1/3 mb-2.5"></div>
+              <div className="space-y-1.5">
+                <div className="h-2 bg-slate-300/40 rounded w-full"></div>
+                <div className="h-2 bg-slate-300/40 rounded w-full"></div>
+                <div className="h-2 bg-slate-300/40 rounded w-5/6"></div>
+              </div>
+            </div>
+
+            {/* Experience Section */}
+            <div>
+              <div className="h-4 bg-sky-500/60 rounded w-2/5 mb-3"></div>
+              <div className="mb-4">
+                <div className="flex justify-between items-baseline mb-1">
+                  <div className="h-3 bg-slate-200/70 rounded w-1/2"></div>
+                  <div className="h-2 bg-slate-400/50 rounded w-1/4"></div>
+                </div>
+                <div className="h-2.5 bg-slate-400/60 rounded w-1/3 mb-2"></div>
+                <div className="space-y-1.5 pl-3">
+                  <div className="h-2 bg-slate-300/40 rounded w-full"></div>
+                  <div className="h-2 bg-slate-300/40 rounded w-11/12"></div>
+                  <div className="h-2 bg-slate-300/40 rounded w-full"></div>
+                </div>
+              </div>
+            </div>
           </div>
-        </div>
-        {/* Skills */}
-        <div className="mt-5">
-          <div className="h-3 bg-sky-500/60 rounded w-1/4 mb-2.5"></div>
-          <div className="flex flex-wrap gap-2">
-            <div className="h-5 bg-sky-600/50 rounded-full w-1/5"></div>
-            <div className="h-5 bg-sky-600/50 rounded-full w-1/4"></div>
-            <div className="h-5 bg-sky-600/50 rounded-full w-1/6"></div>
-            <div className="h-5 bg-sky-600/50 rounded-full w-1/3"></div>
+
+          {/* Sidebar Column (Right) */}
+          <div className="w-[35%] border-l border-slate-400/20 pl-5">
+            {/* Contact Section */}
+            <div className="mb-5">
+              <div className="h-4 bg-sky-500/60 rounded w-1/2 mb-3"></div>
+              <div className="space-y-2.5">
+                <div className="flex items-center"><MailIcon className="w-4 h-4 text-slate-300/80 mr-2"/><div className="h-2 bg-slate-300/50 rounded w-full"></div></div>
+                <div className="flex items-center"><PhoneIcon className="w-4 h-4 text-slate-300/80 mr-2"/><div className="h-2 bg-slate-300/50 rounded w-4/5"></div></div>
+                <div className="flex items-center"><LinkedInIcon className="w-4 h-4 text-slate-300/80 mr-2"/><div className="h-2 bg-slate-300/50 rounded w-full"></div></div>
+              </div>
+            </div>
+
+            {/* Skills Section */}
+            <div>
+              <div className="h-4 bg-sky-500/60 rounded w-1/2 mb-3"></div>
+              <div className="flex flex-wrap gap-1.5">
+                <div className="h-5 bg-sky-600/60 rounded-full w-1/3"></div>
+                <div className="h-5 bg-sky-600/60 rounded-full w-2/5"></div>
+                <div className="h-5 bg-sky-600/60 rounded-full w-1/2"></div>
+                <div className="h-5 bg-sky-600/60 rounded-full w-1/3"></div>
+                <div className="h-5 bg-sky-600/60 rounded-full w-1/4"></div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
     </div>
   );
 };
+
 
 const AnalysisScreenshotPreview: React.FC = () => (
   <div className="bg-dark-light/50 backdrop-blur-md border border-dark-lighter p-6 rounded-xl shadow-glass w-full max-w-md mx-auto">
@@ -391,7 +421,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onInterestRegistered }
             </div>
           </div>
           <div className="hidden md:block animate-fade-in-up" style={{animationDelay: '0.3s'}}>
-            <AppScreenshotPreview />
+            <RealisticResumePreview />
           </div>
         </div>
       </header>
