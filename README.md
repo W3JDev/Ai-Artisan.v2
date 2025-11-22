@@ -297,14 +297,3 @@ While many resume builders exist, AI Resume Artisan differentiates itself throug
 *   **Boost Confidence:** Provides data-driven insights and actionable suggestions, empowering users in their job search.
 *   **Stay Competitive:** Helps create modern, professional, and tailored application materials.
 
-## Disclaimer
-
-AI-generated content is a powerful tool, but it's essential to review and personalize all generated documents. AI Resume Artisan provides a strong starting point, but your unique insights and experiences are crucial to making your application truly shine. Always double-check for accuracy and ensure the tone aligns with your personal brand.
-
-## Contributing
-
-[Details on how to contribute to the project, if open to contributions. e.g., Fork the repo, create a feature branch, submit a pull request.]
-
-## License
-
-[Specify the project's license, e.g., MIT, Apache 2.0. If not decided, can state "License to be determined."]]
