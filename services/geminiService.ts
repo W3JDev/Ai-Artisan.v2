@@ -1,20 +1,25 @@
+
 import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
-import type { ResumeData, TailoringStrength, JobMatchAnalysis, CoverLetterTone } from '../types';
+import type { ResumeData, TailoringStrength, JobMatchAnalysis, CoverLetterTone, AtsAuditResult } from '../types';
 
 if (!process.env.API_KEY) {
-  // This check is mostly for development. In a bundled app, process.env might behave differently.
-  // The user is expected to have API_KEY set in their environment.
   console.warn("API_KEY environment variable not found. Gemini API calls will likely fail.");
 }
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
-const RESUME_MODEL_NAME = "gemini-2.5-pro"; // Powerful model for complex analysis and generation with thinking.
-const FAST_MODEL_NAME = "gemini-2.5-flash"; // Fast model for suggestions, cover letters, and interview questions.
+
+// --- MODEL CONFIGURATION ---
+// Intelligence & Formatting
+const RESUME_MODEL_NAME = "gemini-3-pro-preview"; 
+// Speed & Tools (Search)
+const FAST_MODEL_NAME = "gemini-2.5-flash"; 
+// Image Generation
+const IMAGE_MODEL_NAME = "gemini-3-pro-image-preview";
 
 
 function parseJsonFromText(text: string): any {
   let jsonStr = text.trim();
-  const fenceRegex = /^```(\w*)?\s*\n?(.*?)\n?\s*```$/s; // Matches ```json ... ``` or ``` ... ```
+  const fenceRegex = /^```(\w*)?\s*\n?(.*?)\n?\s*```$/s; 
   const match = jsonStr.match(fenceRegex);
   if (match && match[2]) {
     jsonStr = match[2].trim();
@@ -27,18 +32,82 @@ function parseJsonFromText(text: string): any {
   }
 }
 
+/**
+ * Generates a professional headshot using Gemini 3 Pro Image Preview.
+ */
+export async function generateHeadshot(description: string, imageSize: '1K' | '2K' | '4K' = '1K'): Promise<string> {
+  const prompt = `Professional executive headshot, linkedin profile photo style, ${description}, studio lighting, neutral background, high definition, photorealistic, 8k.`;
+  
+  try {
+    const response: GenerateContentResponse = await ai.models.generateContent({
+      model: IMAGE_MODEL_NAME,
+      contents: {
+        parts: [{ text: prompt }]
+      },
+      config: {
+        imageConfig: {
+          aspectRatio: "1:1",
+          imageSize: imageSize
+        }
+      }
+    });
+
+    for (const part of response.candidates?.[0]?.content?.parts || []) {
+      if (part.inlineData) {
+        return `data:image/png;base64,${part.inlineData.data}`;
+      }
+    }
+    throw new Error("No image data returned from Gemini.");
+  } catch (error) {
+    console.error("Image Gen Error:", error);
+    throw new Error("Failed to generate headshot.");
+  }
+}
+
+/**
+ * Uses Search Grounding to find industry trends.
+ */
+export async function researchIndustryTrends(jobTitle: string): Promise<string> {
+    const prompt = `What are the top 3 current trends, keywords, and critical technologies for a "${jobTitle}" role in 2025? Provide a concise list of keywords that should be on a resume.`;
+    
+    try {
+        const response = await ai.models.generateContent({
+            model: FAST_MODEL_NAME,
+            contents: prompt,
+            config: {
+                tools: [{ googleSearch: {} }]
+            }
+        });
+        
+        // Return the text directly (includes grounding)
+        return response.text || "Could not retrieve trend data.";
+    } catch (error) {
+        console.error("Grounding Error:", error);
+        return ""; // Fail silently to not block main flow
+    }
+}
 
 export async function generateResumeFromText(
   rawText: string, 
   jobDescription?: string,
-  appliedSuggestionContext?: { originalGap: string; aiSuggestion: string; }
+  appliedSuggestionContext?: { originalGap: string; aiSuggestion: string; },
+  industryTrends?: string
 ): Promise<ResumeData> {
+  
   const jobDescriptionContext = jobDescription?.trim() 
     ? `
     --- RELEVANT JOB DESCRIPTION (for tailoring resume content and job match analysis) ---
     ${jobDescription}
     --- END JOB DESCRIPTION ---
     ` 
+    : "";
+
+  const trendsContext = industryTrends 
+    ? `
+    --- REAL-TIME INDUSTRY TRENDS (Google Search Grounding) ---
+    Use these keywords if relevant to the candidate's experience: ${industryTrends}
+    --- END TRENDS ---
+    `
     : "";
 
   let revisionContext = "";
@@ -49,98 +118,49 @@ export async function generateResumeFromText(
     The original identified gap was: "${appliedSuggestionContext.originalGap}"
     The AI-generated suggestion to address this gap was: "${appliedSuggestionContext.aiSuggestion}"
     Please regenerate the entire resume, effectively incorporating this suggestion to address the original gap. 
-    Ensure the resume remains concise, ATS-friendly, and on one page. 
+    Ensure the resume remains concise, ATS-friendly, and fits a premium executive layout.
     Critically, re-evaluate and update the 'tailoringKeywords', 'tailoringStrength', and 'jobMatchAnalysis' fields based on this revised version.
     --- END REVISION CONTEXT ---
     `;
   }
 
   const prompt = `
-    You are an expert resume writer, ATS optimization specialist, and career analyst.
+    You are an elite Executive Career Strategist and ATS Algorithm Expert.
+    Your goal is to create a **high-converting, top 1% resume** that is strictly optimized for a **SINGLE PAGE**.
+
     ${revisionContext ? revisionContext : 'Analyze the following raw resume information provided by the user:'}
     --- RAW RESUME INFORMATION ---
     ${rawText}
     --- END RAW RESUME INFORMATION ---
     ${jobDescriptionContext}
-    Transform this information into a concise, professional, and ATS-friendly one-page resume.
-    The resume MUST be structured to fit on a single standard page. Prioritize the most impactful information.
-    Your output MUST be a valid JSON object adhering to the following TypeScript interface structure:
+    ${trendsContext}
+    
+    ### CRITICAL INSTRUCTIONS FOR ATS (APPLICANT TRACKING SYSTEM) COMPLIANCE:
+    1.  **Standard Headers:** You MUST use standard section headers in the output data (e.g., "Experience", "Education", "Skills", "Summary"). Do not use creative headers like "My Journey" or "Professional History".
+    2.  **Keyword Optimization:** Seamlessly integrate keywords from the provided Job Description into the bullet points.
+    3.  **Strict 1-Page Constraint:** Prioritize ruthlessly.
+    4.  **Bullet Point Structure:** Every bullet point must follow the **Action + Context + Result (Metric)** structure. Start with a strong power verb.
+    5.  **Infer Missing Skills:** If the experience implies a skill (e.g., "Managed project budget" -> "Budgeting & Cost Control"), add it to the Skills array.
+    6.  **Headshot Prompt:** Create a prompt for an AI image generator to create a professional headshot.
 
-    interface ContactInfo {
-      email?: string;
-      phone?: string;
-      location?: string;
-      linkedin?: string;
-      portfolio?: string;
-      website?: string;
-    }
-
-    interface ExperienceItem {
-      company: string;
-      role: string; // Job title
-      dates: string; // e.g., "Sep 2024 - Present" or "Jul 2022 - Feb 2024"
-      responsibilities: string[]; // Array of concise bullet points (action verb first)
-    }
-
-    interface EducationItem {
-      institution: string;
-      degree: string; // e.g., "BSc (Hons) in Business Administration"
-      details: string; // e.g., "2013 - Present" or "Graduated May 2017 | Relevant Honors"
-    }
-
-    interface CertificationItem {
-      name: string;
-      issuer: string;
-      date?: string; // e.g., "Issued Aug 2023" or "2023"
-    }
-
-    interface JobMatchAnalysis {
-      matchScore?: number; // Percentage (0-100) indicating resume alignment with the job description.
-      strengths?: string[]; // 2-3 bullet points highlighting key alignments.
-      gaps?: string[]; // 2-3 bullet points suggesting areas for improvement or missing elements relevant to the job.
-    }
+    Your output MUST be a valid JSON object adhering to the following structure:
 
     interface ResumeData {
-      name: string; // Full name
-      jobTitle?: string; // Professional title, e.g., "Senior Frontend Developer"
-      contact: ContactInfo;
-      summary: string; // A concise professional summary (2-4 sentences).
-      experience: ExperienceItem[]; // Most relevant 2-4 experiences. Summarize responsibilities.
-      education: EducationItem[];
+      name: string; 
+      jobTitle?: string; 
+      contact: ContactInfo; // email, phone, location, linkedin, portfolio
+      summary: string; // Max 2-3 lines.
+      experience: ExperienceItem[]; // company, role, dates, responsibilities[]
+      education: EducationItem[]; // institution, degree, details
       licensesCertifications?: CertificationItem[];
-      skills: string[]; // List of key skills.
-      tailoringKeywords?: string[]; // If job description was provided, list 5-7 key skills/terms from it that you focused on for tailoring.
-      tailoringStrength?: 'Excellent' | 'Good' | 'Fair'; // Your qualitative assessment of how well the resume was tailored to the job description.
-      jobMatchAnalysis?: JobMatchAnalysis; // If job description was provided, include this analysis.
+      skills: string[]; // Limit to top 12-15 most relevant hard skills.
+      tailoringKeywords?: string[]; 
+      tailoringStrength?: 'Excellent' | 'Good' | 'Fair'; 
+      jobMatchAnalysis?: JobMatchAnalysis; // matchScore (0-100), strengths[], gaps[]
+      suggestedHeadshotPrompt?: string; 
     }
 
-    Key instructions for resume generation:
-    1.  **Conciseness for One Page:** Aggressively summarize to ensure the entire resume can reasonably fit on a single page. If input is too long, select the most impactful and recent information. For experience, limit to 3-5 bullet points per role.
-    2.  **ATS Optimization:** Use common keywords relevant to typical job roles.
-    3.  **Professional Tone:** Maintain a formal and professional tone.
-    4.  **Action Verbs:** Start bullet points in experience sections with strong action verbs.
-    5.  **Quantify Achievements:** Where possible, include quantifiable achievements.
-    6.  **Skills:** Extract a diverse list of technical and soft skills.
-
-    Key instructions for Job Description Tailoring & Analysis (if job description is provided):
-    1.  **Tailor Resume Content:**
-        *   Analyze the job description to identify key skills, technologies, and qualifications. 
-        *   Subtly and naturally weave these relevant keywords and concepts into the resume's summary, experience, and skills sections. This tailoring should enhance relevance without making the resume verbose or compromising the one-page limit.
-        *   List 5-7 of the MOST IMPORTANT keywords/phrases from the job description used for tailoring in 'tailoringKeywords'.
-        *   Based on the extent and quality of this integration, provide a 'tailoringStrength' value:
-            *   'Excellent': Most important keywords from the job description are naturally integrated throughout multiple relevant sections.
-            *   'Good': A significant number of important keywords are well-integrated in relevant sections.
-            *   'Fair': Some key keywords are integrated, but perhaps less extensively or smoothly.
-        *   If no job description was provided, or if meaningful tailoring wasn't possible, 'tailoringKeywords' can be omitted or be an empty array, and 'tailoringStrength' can be omitted.
-    2.  **Perform Job Match Analysis (Populate 'jobMatchAnalysis'):**
-        *   **matchScore:** Provide a numerical score (0-100) representing the overall alignment of the generated resume content with the job description. Higher scores mean better alignment.
-        *   **strengths:** List 2-3 key areas where the resume strongly aligns with the job description's requirements. Be specific.
-        *   **gaps:** List 2-3 specific areas where the resume could be improved to better match the job description, or identify crucial elements from the job description that are not sufficiently addressed in the resume.
-        *   If no job description was provided, 'jobMatchAnalysis' can be omitted.
-
-    **Strict JSON Adherence:** The entire output must be a single, valid JSON object. Do not include any text, explanations, or comments before or after the JSON. Critically, ensure no extraneous text, markers, or non-JSON characters (like the example 'सुर' which was a previous mistake you made and should be avoided) are present anywhere within the JSON structure itself, especially within or between elements of JSON arrays (e.g., in the 'experience' array) or objects. Each element in an array of objects must be a complete and valid JSON object. The response must be parsable by a standard JSON parser without any pre-processing beyond removing optional markdown fences (like \`\`\`json ... \`\`\`).
-
-    Output JSON Only: Ensure the entire response is ONLY the JSON object.
+    Output JSON Only. No markdown text outside the JSON block.
   `;
 
   try {
@@ -149,8 +169,8 @@ export async function generateResumeFromText(
       contents: prompt,
       config: {
         responseMimeType: "application/json",
-        temperature: 0.3, 
-        thinkingConfig: { thinkingBudget: 32768 }, // Enable thinking mode for complex resume analysis.
+        // Using thinking budget for the 3.0 Pro model to ensure deep analysis
+        thinkingConfig: { thinkingBudget: 4000 }, 
       },
     });
     
@@ -161,7 +181,48 @@ export async function generateResumeFromText(
     if (error instanceof Error && error.message.includes("API key not valid")) {
         throw new Error("Invalid API Key. Please check your API_KEY environment variable.");
     }
-    throw new Error(`Failed to generate resume content from AI. Details: ${error instanceof Error ? error.message : String(error)}`);
+    throw new Error(`Failed to generate resume content. Details: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
+/**
+ * Simulates a strict ATS parse to audit the resume for parseability and keyword density.
+ */
+export async function runAtsAudit(resumeData: ResumeData, jobDescription: string): Promise<AtsAuditResult> {
+  const prompt = `
+    ACT AS A STRICT APPLICANT TRACKING SYSTEM (ATS) (e.g., Taleo, Greenhouse).
+    
+    Analyze the following structured resume data against the target job description.
+    Resume JSON: ${JSON.stringify(resumeData)}
+    Job Description: ${jobDescription.substring(0, 1000)}...
+
+    Conduct a technical audit:
+    1. **Parseability Score:** Rate from 0-100 how easily a machine can extract the core entities (Name, Contact, Role, Skills). 
+       - Since the input is JSON, base this on the *content* quality (e.g., are dates in standard formats? are headers standard?).
+    2. **Keyword Match:** Identify critical keywords from the JD that are MISSING in the resume.
+    3. **Formatting Check:** Identify any potential red flags in the text content (e.g., use of non-standard characters, vague dates).
+    4. **Human Review Status:** Based on the score, will this be "Auto-Reject", "Review", or "Priority"?
+
+    Output JSON only:
+    {
+      "parseabilityScore": number,
+      "missingCriticalKeywords": string[],
+      "formattingIssues": string[],
+      "sectionHeaderStandardization": "Pass" | "Fail",
+      "estimatedHumanReviewStatus": "Auto-Reject" | "Review" | "Priority"
+    }
+  `;
+
+  try {
+    const response: GenerateContentResponse = await ai.models.generateContent({
+      model: FAST_MODEL_NAME, // Fast model is sufficient for auditing
+      contents: prompt,
+      config: { responseMimeType: "application/json" }
+    });
+    return parseJsonFromText(response.text) as AtsAuditResult;
+  } catch (e) {
+    console.error("ATS Audit Failed", e);
+    throw new Error("Could not complete ATS Audit.");
   }
 }
 
@@ -176,163 +237,79 @@ export async function generateCoverLetterStream(resumeData: ResumeData, jobDescr
   `;
 
   const toneInstruction = {
-    professional: "Maintain a professional and formal tone throughout.",
-    enthusiastic: "Write with an enthusiastic and passionate tone, showing genuine excitement for the role.",
-    formal: "Adopt a very formal and respectful business letter tone."
+    professional: "Confident, competent, and polished.",
+    enthusiastic: "Energetic, forward-looking, and eager.",
+    formal: "Respectful, traditional, and reserved."
   };
 
   const prompt = `
-    You are an expert career advisor and professional writer.
-    Based on the following resume summary:
-    --- RESUME SUMMARY ---
-    ${resumeSummaryForPrompt}
-    --- END RESUME SUMMARY ---
-
-    And the following job description:
-    --- JOB DESCRIPTION ---
-    ${jobDescription}
-    --- END JOB DESCRIPTION ---
-
-    Generate a compelling, professional, and concise cover letter.
-    Key instructions:
-    1.  **Tone:** ${toneInstruction[tone]}
-    2.  Address it generally (e.g., "Dear Hiring Manager,").
-    3.  Briefly introduce the candidate and the purpose of the letter.
-    4.  Highlight 2-3 key skills or experiences from the resume that are most relevant to the job description.
-    5.  Express enthusiasm for the potential opportunity, according to the specified tone.
-    6.  Conclude with a call to action (e.g., expressing eagerness for an interview).
-    7.  Maintain a standard business letter format.
-    8.  The entire output must be only the plain text for the cover letter. Do not include any meta-comments or JSON.
-    9.  Keep the cover letter concise, ideally 3-4 paragraphs.
+    Write a modern, impactful cover letter.
+    Candidate: ${resumeSummaryForPrompt}
+    Job: ${jobDescription}
+    Tone: ${toneInstruction[tone]}
+    
+    Structure:
+    1. Hook: Why I am writing and why I am unique.
+    2. The "Meat": Specific proof I can do the job (mapping resume skills to job needs).
+    3. Closing: Call to action.
+    
+    Keep it under 300 words. Return plain text only.
   `;
 
   try {
     const response = await ai.models.generateContentStream({
       model: FAST_MODEL_NAME,
       contents: prompt,
-      config: {
-        temperature: 0.7, 
-      },
+      config: { temperature: 0.7 },
     });
     return response;
   } catch (error) {
     console.error("Error generating cover letter:", error);
-    if (error instanceof Error && error.message.includes("API key not valid")) {
-        throw new Error("Invalid API Key. Please check your API_KEY environment variable.");
-    }
-    throw new Error(`Failed to generate cover letter from AI. Details: ${error instanceof Error ? error.message : String(error)}`);
+    throw new Error(`Failed to generate cover letter. Details: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 
 export async function getSuggestionForGap(currentResumeData: ResumeData, jobDescription: string, gapDescription: string): Promise<string> {
   const prompt = `
-    You are an AI career assistant. You are reviewing a candidate's resume and a job description.
-    A specific gap has been identified between the resume and the job description.
-
-    Current Resume Summary (for context):
-    Name: ${currentResumeData.name}
-    ${currentResumeData.jobTitle ? `Title: ${currentResumeData.jobTitle}` : ''}
-    Summary: ${currentResumeData.summary}
-    Skills: ${currentResumeData.skills.join(', ')}
-    Experience Highlights:
-    ${currentResumeData.experience.map(exp => `- ${exp.role} at ${exp.company}: ${exp.responsibilities.slice(0,1).join(' ')}...`).slice(0, 2).join('\n')}
-
-    Full Job Description:
-    --- JOB DESCRIPTION ---
-    ${jobDescription}
-    --- END JOB DESCRIPTION ---
-
-    Identified Gap:
-    "${gapDescription}"
-
-    Your task is to provide ONE concise, actionable suggestion to help the candidate address this specific gap in their resume.
-    The suggestion should be practical. For example, it could be:
-    - A rephrased bullet point for an existing experience.
-    - A specific skill to add or highlight if it's likely the candidate possesses it based on their overall profile.
-    - Advice on how to reframe a part of their summary.
-    - A suggestion to add a specific type of quantifiable achievement if relevant.
-
-    Focus on how to improve the *existing* resume structure based on the identified gap.
-    The suggestion should be brief, ideally 1-2 sentences.
-    Return only the plain text suggestion. Do not include any preamble like "Here's a suggestion:".
+    Gap Analysis Task.
+    Resume Context: ${currentResumeData.jobTitle} - ${currentResumeData.skills.slice(0,5).join(', ')}
+    Gap: "${gapDescription}"
+    Job Requirement: Inferred from gap.
+    
+    Provide ONE high-impact revision or addition (1-2 sentences) to close this gap. 
+    It could be a new bullet point, a skill addition, or a summary tweak.
+    Return ONLY the suggestion text.
   `;
 
   try {
     const response: GenerateContentResponse = await ai.models.generateContent({
       model: FAST_MODEL_NAME,
       contents: prompt,
-      config: {
-        temperature: 0.5,
-      },
+      config: { temperature: 0.5 },
     });
     return response.text.trim();
-  } catch (err: any) { // Added 'err: any' to correctly define the caught error object
-    console.error("Error getting suggestion for gap:", err);
-     if (err instanceof Error && err.message.includes("API key not valid")) {
-        throw new Error("Invalid API Key for suggestion. Please check your API_KEY environment variable.");
-    }
-    // Corrected to use 'err' instead of 'error'
-    throw new Error(`Failed to get suggestion from AI. Details: ${err instanceof Error ? err.message : String(err)}`);
+  } catch (err: any) {
+    throw new Error(`Failed to get suggestion. Details: ${err instanceof Error ? err.message : String(err)}`);
   }
 }
 
 export async function generateInterviewQuestions(resumeData: ResumeData, jobDescription: string): Promise<string[]> {
-    const resumeContext = `
-    - Candidate Name: ${resumeData.name}
-    - Role applying for: ${resumeData.jobTitle || 'Not specified'}
-    - Key Skills: ${resumeData.skills.join(', ')}
-    - Summary of Experience: ${resumeData.experience.map(exp => `${exp.role} at ${exp.company}`).join('; ')}
-    `;
-
     const prompt = `
-    You are an expert technical recruiter and career coach.
-    Based on the provided resume context and job description, generate a list of likely interview questions.
-
-    --- RESUME CONTEXT ---
-    ${resumeContext}
-    --- END RESUME CONTEXT ---
-
-    --- JOB DESCRIPTION ---
-    ${jobDescription}
-    --- END JOB DESCRIPTION ---
-
-    Your task is to create a list of 8-10 interview questions that cover:
-    1.  **Behavioral Questions:** Probing into past experiences, teamwork, and problem-solving skills mentioned in the resume.
-    2.  **Technical/Situational Questions:** Directly related to the key skills and responsibilities listed in the job description and reflected in the candidate's skills.
-    3.  **Resume-Specific Questions:** Asking for more detail on specific projects or roles mentioned in the resume summary.
-
-    Your output MUST be a valid JSON array of strings. Each string in the array should be a single interview question.
-    Example format:
-    [
-        "Can you tell me about a challenging project you worked on at [Previous Company]?",
-        "How would you approach designing a system that does X, given your experience with Y technology?",
-        "Describe a time you had a conflict with a team member and how you resolved it."
-    ]
-
-    Output JSON Only: Ensure the entire response is ONLY the JSON array.
+    Generate 5 tough, role-specific interview questions based on:
+    Resume: ${resumeData.jobTitle}, Skills: ${resumeData.skills.join(', ')}
+    Job: ${jobDescription.substring(0, 500)}...
+    
+    Output JSON array of strings.
     `;
     
     try {
         const response: GenerateContentResponse = await ai.models.generateContent({
             model: FAST_MODEL_NAME,
             contents: prompt,
-            config: {
-                responseMimeType: "application/json",
-                temperature: 0.5,
-            },
+            config: { responseMimeType: "application/json", temperature: 0.5 },
         });
-        
-        const parsed = parseJsonFromText(response.text);
-        if (Array.isArray(parsed) && parsed.every(item => typeof item === 'string')) {
-            return parsed as string[];
-        }
-        throw new Error("AI returned data in an unexpected format.");
-
+        return parseJsonFromText(response.text) as string[];
     } catch (error) {
-        console.error("Error generating interview questions:", error);
-        if (error instanceof Error && error.message.includes("API key not valid")) {
-            throw new Error("Invalid API Key. Please check your API_KEY environment variable.");
-        }
-        throw new Error(`Failed to generate interview questions from AI. Details: ${error instanceof Error ? error.message : String(error)}`);
+        throw new Error(`Failed to generate questions.`);
     }
 }

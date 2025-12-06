@@ -5,7 +5,7 @@ import html2canvas from 'html2canvas';
 // A4 page dimensions in mm
 const A4_WIDTH_MM = 210;
 const A4_HEIGHT_MM = 297;
-const MARGIN_MM = 15;
+const MARGIN_MM = 0; // We handle margins inside the CSS now for better control
 
 /**
  * Downloads a rendered HTML element as a multi-page PDF document.
@@ -24,12 +24,21 @@ export async function downloadResumeAsPdf(element: HTMLElement, resumeName: stri
 
   try {
     // Generate a high-resolution canvas from the HTML element.
-    // A higher scale (e.g., 3) improves text clarity in the final PDF.
+    // Scale 5 provides near-print quality (~450-600 DPI equivalent)
     const fullContentCanvas = await html2canvas(element, {
-      scale: 3,
+      scale: 5, 
       useCORS: true,
       logging: false,
-      backgroundColor: '#ffffff',
+      backgroundColor: '#ffffff', // Force white background for the paper itself
+      allowTaint: true,
+      imageTimeout: 0, // Ensure images load
+      onclone: (clonedDoc) => {
+        const clonedElement = clonedDoc.getElementById(element.id);
+        if (clonedElement) {
+           clonedElement.style.boxShadow = 'none'; // Double ensure no outer shadows
+           clonedElement.style.transform = 'none';
+        }
+      }
     });
     
     // Remove the temporary class after capture is complete.
@@ -39,27 +48,21 @@ export async function downloadResumeAsPdf(element: HTMLElement, resumeName: stri
       orientation: 'portrait',
       unit: 'mm',
       format: 'a4',
+      compress: true
     });
-
-    const pageContentWidth = A4_WIDTH_MM - MARGIN_MM * 2;
-    const pageContentHeight = A4_HEIGHT_MM - MARGIN_MM * 2;
 
     const canvasWidth = fullContentCanvas.width;
     const canvasHeight = fullContentCanvas.height;
 
     // The logic maintains the aspect ratio of the captured content.
-    // We calculate the scale factor between the canvas width and the PDF's printable width.
-    const canvasToPdfScale = pageContentWidth / canvasWidth;
+    const canvasToPdfScale = A4_WIDTH_MM / canvasWidth;
 
-    // Using this scale, we can determine how much of the canvas's height fits onto one PDF page.
-    const onePageCanvasHeight = pageContentHeight / canvasToPdfScale;
+    // We calculate exactly how much fits on one page
+    const onePageCanvasHeight = A4_HEIGHT_MM / canvasToPdfScale;
 
     let canvasYPosition = 0;
 
     // Loop through the tall canvas, slicing it into page-sized chunks.
-    // NOTE: This method can cause content (like a line of text) to be clipped if it
-    // falls directly on a page break. This is a known limitation of this client-side
-    // HTML-to-PDF approach. The margin helps, but cannot fully prevent it.
     while (canvasYPosition < canvasHeight) {
       if (canvasYPosition > 0) { // Add a new page for all but the first slice
         pdf.addPage();
@@ -88,19 +91,17 @@ export async function downloadResumeAsPdf(element: HTMLElement, resumeName: stri
           sliceHeight  // destHeight
         );
 
-        // Using PNG for lossless quality, which is ideal for text.
-        const pageImgData = pageCanvas.toDataURL('image/png', 1.0);
-        
-        // Calculate the height of this specific image slice when placed in the PDF, maintaining aspect ratio.
-        const pdfImageHeight = sliceHeight * canvasToPdfScale;
+        // Using JPEG with high quality (0.98) can sometimes be sharper/smaller than PNG for complex docs,
+        // but PNG is safer for text sharpness. Let's stick to PNG for max crispness.
+        const pageImgData = pageCanvas.toDataURL('image/png');
         
         pdf.addImage(
           pageImgData,
           'PNG',
-          MARGIN_MM, // x
-          MARGIN_MM, // y
-          pageContentWidth, // width
-          pdfImageHeight // height
+          0, // x (0 because margins are internal)
+          0, // y
+          A4_WIDTH_MM, // width
+          sliceHeight * canvasToPdfScale // height
         );
       }
       
@@ -129,20 +130,20 @@ export function downloadCoverLetterAsPdf(letterText: string, resumeName?: string
     pdf.setFont('helvetica', 'normal'); 
     pdf.setFontSize(11);
 
-    const usableWidth = A4_WIDTH_MM - 2 * MARGIN_MM;
+    const usableWidth = A4_WIDTH_MM - 30; // 15mm margin * 2
     
     const lines = pdf.splitTextToSize(letterText, usableWidth);
 
-    let cursorY = MARGIN_MM;
+    let cursorY = 15;
     const pdfLineHeight = pdf.getLineHeight() / pdf.internal.scaleFactor;
     const customLineHeight = pdfLineHeight * 1.2; 
 
     lines.forEach((line: string) => {
-      if (cursorY + customLineHeight > A4_HEIGHT_MM - MARGIN_MM) {
+      if (cursorY + customLineHeight > A4_HEIGHT_MM - 15) {
         pdf.addPage();
-        cursorY = MARGIN_MM;
+        cursorY = 15;
       }
-      pdf.text(line, MARGIN_MM, cursorY);
+      pdf.text(line, 15, cursorY);
       cursorY += customLineHeight;
     });
     

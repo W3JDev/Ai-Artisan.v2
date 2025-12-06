@@ -1,185 +1,171 @@
 
-import React from 'react';
-import { LoadingSpinner } from './LoadingSpinner';
+import React, { useState } from 'react';
 import type { ResumeInputProps, TemplateName, FontGroupName, CoverLetterTone } from '../types';
-import { XMarkIcon } from './icons'; // Import the new icon
+import { CogIcon, SparklesIcon, DocumentMagnifyingGlassIcon } from './icons';
+import { LoadingSpinner } from './LoadingSpinner';
+
+const Label: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+  <label className="block text-[10px] font-bold text-subtle uppercase tracking-widest mb-2">{children}</label>
+);
 
 export const ResumeInput: React.FC<ResumeInputProps> = ({
-  rawText,
-  onRawTextChange,
-  jobDescription,
-  onJobDescriptionChange,
-  onGenerateResume,
-  onGenerateCoverLetter,
-  isGeneratingResume,
-  isGeneratingCoverLetter,
-  resumeGenerated,
-  selectedTemplate,
-  onTemplateChange,
-  selectedFontGroup,
-  onFontGroupChange,
-  onTryExample,
-  coverLetterTone,
-  onCoverLetterToneChange,
-  onGenerateInterviewQuestions,
-  isGeneratingInterviewQuestions,
+  rawText, onRawTextChange,
+  jobDescription, onJobDescriptionChange,
+  onGenerateResume, selectedTemplate, onTemplateChange,
+  selectedFontGroup, onFontGroupChange, isGeneratingResume, onTryExample,
+  settings, onSettingsChange,
+  onGenerateHeadshot, isGeneratingHeadshot,
+  onResearchTrends, isResearching, industryTrends
 }) => {
-  const commonSelectClasses = "w-full p-3 bg-slate-700 text-gray-200 border border-slate-600 rounded-md shadow-sm focus:ring-sky-500 focus:border-sky-500 placeholder-slate-400 disabled:opacity-50 disabled:cursor-not-allowed";
-  const commonTextareaWrapperClasses = "relative";
-  const commonClearButtonClasses = "absolute top-2 right-2 p-1 text-slate-400 hover:text-sky-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors";
-  const isAnyActionLoading = isGeneratingResume || isGeneratingCoverLetter || isGeneratingInterviewQuestions;
-
+  
+  const [openSection, setOpenSection] = useState<'content' | 'settings' | 'ai'>('content');
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-end">
-        <button
-            type="button"
-            onClick={onTryExample}
-            disabled={isAnyActionLoading}
-            className="text-sm font-medium text-sky-400 hover:text-sky-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+    <div className="space-y-4">
+      
+      {/* 1. Strategy & Content */}
+      <div className={`border border-glass-border bg-charcoal rounded-lg overflow-hidden transition-all duration-300 ${openSection === 'content' ? 'ring-1 ring-white/10 bg-surface' : 'opacity-80'}`}>
+        <button 
+            onClick={() => setOpenSection('content')}
+            className="w-full px-5 py-4 flex justify-between items-center text-left hover:bg-white/5 transition-colors"
         >
-            Try with an Example
+            <span className="font-semibold text-sm text-white">1. Core Strategy</span>
+            <div className={`w-1.5 h-1.5 rounded-full ${rawText ? 'bg-green-500 shadow-[0_0_8px_#10B981]' : 'bg-slate-700'}`} />
         </button>
-      </div>
-      <div>
-        <label htmlFor="rawText" className="block text-sm font-medium text-sky-300 mb-1">
-          Paste Your Resume Details
-        </label>
-        <div className={commonTextareaWrapperClasses}>
-          <textarea
-            id="rawText"
-            rows={10}
-            className={`${commonSelectClasses} resize-y pr-8`} // Added pr-8 for button space
-            placeholder="Paste your current resume, LinkedIn profile text, or just jot down your experience, skills, and education..."
-            value={rawText}
-            onChange={(e) => onRawTextChange(e.target.value)}
-            disabled={isAnyActionLoading}
-          />
-          {rawText && (
-            <button
-              type="button"
-              onClick={() => onRawTextChange('')}
-              className={commonClearButtonClasses}
-              aria-label="Clear resume details"
-              title="Clear resume details"
-              disabled={isAnyActionLoading}
-            >
-              <XMarkIcon className="w-5 h-5" />
-            </button>
-          )}
-        </div>
-        <p className="mt-1 text-xs text-slate-400">Tip: Include links to your LinkedIn, portfolio, or other relevant sites directly in the text.</p>
+        
+        {openSection === 'content' && (
+            <div className="p-5 space-y-6 animate-fade-in-up border-t border-white/5">
+                 <div className="flex justify-end">
+                    <button onClick={onTryExample} className="text-[10px] text-subtle hover:text-accent uppercase tracking-wider font-bold transition-colors">Load Persona</button>
+                </div>
+
+                <div>
+                    <Label>Candidate Profile / Raw Data</Label>
+                    <textarea
+                        className="w-full h-40 bg-obsidian border border-glass-border rounded p-3 text-sm text-platinum focus:ring-1 focus:ring-accent focus:border-transparent outline-none resize-none custom-scrollbar transition-all placeholder-slate-700"
+                        placeholder="Paste experience, skills, and bio..."
+                        value={rawText}
+                        onChange={(e) => onRawTextChange(e.target.value)}
+                    />
+                </div>
+
+                <div>
+                    <div className="flex justify-between items-center mb-2">
+                        <Label>Target Job Description</Label>
+                        {industryTrends && <span className="text-[10px] text-green-400 flex items-center"><SparklesIcon className="w-3 h-3 mr-1"/> Research Active</span>}
+                    </div>
+                    <div className="relative">
+                        <textarea
+                            className="w-full h-28 bg-obsidian border border-glass-border rounded p-3 text-sm text-platinum focus:ring-1 focus:ring-accent focus:border-transparent outline-none resize-none custom-scrollbar transition-all placeholder-slate-700"
+                            placeholder="Paste job description..."
+                            value={jobDescription}
+                            onChange={(e) => onJobDescriptionChange(e.target.value)}
+                        />
+                        {jobDescription && (
+                             <button 
+                                onClick={onResearchTrends}
+                                disabled={isResearching}
+                                className="absolute bottom-3 right-3 bg-white/10 hover:bg-white/20 text-white text-[10px] font-bold px-3 py-1.5 rounded flex items-center backdrop-blur-md transition-all border border-white/5"
+                             >
+                                {isResearching ? <LoadingSpinner size="h-3 w-3" color="text-white"/> : <DocumentMagnifyingGlassIcon className="w-3 h-3 mr-1.5"/>}
+                                {isResearching ? 'Searching...' : 'Deep Grounding'}
+                             </button>
+                        )}
+                    </div>
+                </div>
+            </div>
+        )}
       </div>
 
-      <div>
-        <label htmlFor="jobDescription" className="block text-sm font-medium text-sky-300 mb-1">
-          Job Description (Optional, for Resume Tailoring & Cover Letter)
-        </label>
-        <div className={commonTextareaWrapperClasses}>
-          <textarea
-            id="jobDescription"
-            rows={5}
-            className={`${commonSelectClasses} resize-y pr-8`} // Added pr-8 for button space
-            placeholder="Paste the job description here to tailor your resume and cover letter..."
-            value={jobDescription}
-            onChange={(e) => onJobDescriptionChange(e.target.value)}
-            disabled={isAnyActionLoading}
-          />
-          {jobDescription && (
-            <button
-              type="button"
-              onClick={() => onJobDescriptionChange('')}
-              className={commonClearButtonClasses}
-              aria-label="Clear job description"
-              title="Clear job description"
-              disabled={isAnyActionLoading}
-            >
-              <XMarkIcon className="w-5 h-5" />
-            </button>
-          )}
-        </div>
+      {/* 2. Visual Identity */}
+      <div className={`border border-glass-border bg-charcoal rounded-lg overflow-hidden transition-all duration-300 ${openSection === 'settings' ? 'ring-1 ring-white/10 bg-surface' : 'opacity-80'}`}>
+         <button 
+            onClick={() => setOpenSection('settings')}
+            className="w-full px-5 py-4 flex justify-between items-center text-left hover:bg-white/5 transition-colors"
+        >
+            <span className="font-semibold text-sm text-white">2. Visual Identity</span>
+            <CogIcon className="w-4 h-4 text-subtle" />
+        </button>
+
+        {openSection === 'settings' && (
+            <div className="p-5 space-y-6 animate-fade-in-up border-t border-white/5">
+                <div className="grid grid-cols-2 gap-4">
+                    <div>
+                        <Label>Template</Label>
+                        <select 
+                            value={selectedTemplate}
+                            onChange={(e) => onTemplateChange(e.target.value as TemplateName)}
+                            className="w-full bg-obsidian text-platinum text-xs border border-glass-border rounded p-2.5 focus:ring-1 focus:ring-accent outline-none"
+                        >
+                            <optgroup label="Enterprise">
+                                <option value="enterprise-pro">Executive Suite (Gold)</option>
+                                <option value="classic-serif">Harvard Classic (Serif)</option>
+                                <option value="minimal-sans">Silicon Valley (Clean)</option>
+                            </optgroup>
+                            <optgroup label="Modern/Tech">
+                                <option value="modern-compact">Modern Tech (Compact)</option>
+                                <option value="swiss-grid">Swiss Grid (Technical)</option>
+                            </optgroup>
+                        </select>
+                    </div>
+                    <div>
+                        <Label>Typography</Label>
+                        <select 
+                            value={selectedFontGroup}
+                            onChange={(e) => onFontGroupChange(e.target.value as FontGroupName)}
+                            className="w-full bg-obsidian text-platinum text-xs border border-glass-border rounded p-2.5 focus:ring-1 focus:ring-accent outline-none"
+                        >
+                            <option value="serif">Merriweather (Classic)</option>
+                            <option value="sans-serif">Inter (Clean)</option>
+                            <option value="mono">JetBrains (Tech)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div className="p-4 bg-white/5 rounded border border-white/5">
+                     <div className="flex justify-between items-center mb-3">
+                        <Label><span className="text-accent">Nano Banana Pro</span> Headshot</Label>
+                        <span className="text-[10px] text-slate-500 bg-black/20 px-2 py-0.5 rounded">Gemini Image 3</span>
+                     </div>
+                     <div className="flex gap-2">
+                         <button onClick={() => onGenerateHeadshot('1K')} disabled={isGeneratingHeadshot} className="flex-1 bg-charcoal hover:bg-slate-800 border border-white/10 text-xs py-2 rounded transition-colors text-slate-300">
+                            {isGeneratingHeadshot ? 'Rendering...' : 'Generate 1K'}
+                         </button>
+                         <button onClick={() => onGenerateHeadshot('2K')} disabled={isGeneratingHeadshot} className="flex-1 bg-charcoal hover:bg-slate-800 border border-white/10 text-xs py-2 rounded transition-colors text-slate-300">
+                            {isGeneratingHeadshot ? 'Rendering...' : 'Generate 2K'}
+                         </button>
+                     </div>
+                </div>
+
+                <div>
+                    <Label>Page Fit (A4)</Label>
+                    <div className="flex gap-2">
+                        {['compact', 'standard', 'generous'].map((m) => (
+                             <button
+                                key={m}
+                                onClick={() => onSettingsChange({...settings, margin: m as any})}
+                                className={`flex-1 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded border transition-all ${settings.margin === m ? 'bg-white text-obsidian border-white' : 'bg-transparent text-slate-500 border-white/10 hover:border-white/30'}`}
+                             >
+                                {m}
+                             </button>
+                        ))}
+                    </div>
+                </div>
+            </div>
+        )}
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div>
-          <label htmlFor="templateSelect" className="block text-sm font-medium text-sky-300 mb-1">
-            Resume Template
-          </label>
-          <select
-            id="templateSelect"
-            value={selectedTemplate}
-            onChange={(e) => onTemplateChange(e.target.value as TemplateName)}
-            className={commonSelectClasses}
-            disabled={isAnyActionLoading}
-          >
-            <option value="classic">Classic</option>
-            <option value="modern-compact">Modern Compact</option>
-            <option value="modern-alt">Modern Two-Column</option>
-          </select>
-        </div>
-        <div>
-          <label htmlFor="fontGroupSelect" className="block text-sm font-medium text-sky-300 mb-1">
-            Font Style
-          </label>
-          <select
-            id="fontGroupSelect"
-            value={selectedFontGroup}
-            onChange={(e) => onFontGroupChange(e.target.value as FontGroupName)}
-            className={commonSelectClasses}
-            disabled={isAnyActionLoading}
-          >
-            <option value="sans-serif">Sans-Serif (Lato)</option>
-            <option value="serif">Serif (Merriweather)</option>
-          </select>
-        </div>
-        <div>
-          <label htmlFor="toneSelect" className="block text-sm font-medium text-sky-300 mb-1">
-            Cover Letter Tone
-          </label>
-          <select
-            id="toneSelect"
-            value={coverLetterTone}
-            onChange={(e) => onCoverLetterToneChange(e.target.value as CoverLetterTone)}
-            className={commonSelectClasses}
-            disabled={isAnyActionLoading}
-          >
-            <option value="professional">Professional</option>
-            <option value="enthusiastic">Enthusiastic</option>
-            <option value="formal">Formal</option>
-          </select>
-        </div>
-      </div>
+      <button
+        onClick={onGenerateResume}
+        disabled={isGeneratingResume || !rawText}
+        className="w-full group relative overflow-hidden bg-accent hover:bg-accent-glow text-obsidian font-bold py-4 rounded-lg shadow-lg transition-all hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed mt-4"
+      >
+        <span className="relative z-10 flex items-center justify-center tracking-wide">
+            {isGeneratingResume ? 'Gemini 3 Pro Processing...' : 'INITIALIZE GENERATION'}
+        </span>
+        <div className="absolute inset-0 bg-white/30 translate-y-full group-hover:translate-y-0 transition-transform duration-500 ease-out"></div>
+      </button>
 
-      <div className="flex flex-wrap gap-3 pt-2">
-        <button
-          type="button"
-          onClick={onGenerateResume}
-          disabled={isAnyActionLoading || !rawText.trim()}
-          className="flex-grow sm:flex-grow-0 flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-sky-600 hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-800 focus:ring-sky-500 disabled:bg-slate-500 disabled:cursor-not-allowed transition-colors"
-        >
-          {isGeneratingResume ? <LoadingSpinner size="h-5 w-5 mr-2" /> : null}
-          {isGeneratingResume ? 'Crafting...' : 'Generate Resume'}
-        </button>
-        <button
-          type="button"
-          onClick={onGenerateCoverLetter}
-          disabled={isAnyActionLoading || !resumeGenerated}
-          className="flex-grow sm:flex-grow-0 flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-sky-300 bg-slate-700 hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-800 focus:ring-sky-500 disabled:bg-slate-500 disabled:text-slate-400 disabled:cursor-not-allowed transition-colors"
-        >
-          {isGeneratingCoverLetter ? <LoadingSpinner size="h-5 w-5 mr-2" /> : null}
-          {isGeneratingCoverLetter ? 'Writing...' : 'Generate Cover Letter'}
-        </button>
-         <button
-          type="button"
-          onClick={onGenerateInterviewQuestions}
-          disabled={isAnyActionLoading || !resumeGenerated}
-          className="flex-grow sm:flex-grow-0 flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-sky-300 bg-slate-700 hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-800 focus:ring-sky-500 disabled:bg-slate-500 disabled:text-slate-400 disabled:cursor-not-allowed transition-colors"
-        >
-          {isGeneratingInterviewQuestions ? <LoadingSpinner size="h-5 w-5 mr-2" /> : null}
-          {isGeneratingInterviewQuestions ? 'Prepping...' : 'Prep Interview Questions'}
-        </button>
-      </div>
     </div>
   );
 };

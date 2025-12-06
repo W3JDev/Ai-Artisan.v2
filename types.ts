@@ -1,8 +1,14 @@
 
-export type TemplateName = 'classic' | 'modern-compact' | 'modern-alt';
-export type FontGroupName = 'sans-serif' | 'serif';
+export type TemplateName = 'enterprise-pro' | 'modern-compact' | 'classic-serif' | 'minimal-sans' | 'swiss-grid';
+export type FontGroupName = 'sans-serif' | 'serif' | 'mono';
 export type TailoringStrength = 'Excellent' | 'Good' | 'Fair';
 export type CoverLetterTone = 'professional' | 'enthusiastic' | 'formal';
+
+export interface ResumeSettings {
+  margin: 'compact' | 'standard' | 'generous';
+  lineHeight: 'tight' | 'normal' | 'relaxed';
+  fontSizeScale: 'small' | 'medium' | 'large';
+}
 
 export interface ContactInfo {
   email?: string;
@@ -10,7 +16,7 @@ export interface ContactInfo {
   location?: string;
   linkedin?: string;
   portfolio?: string; 
-  website?: string; // Generic website
+  website?: string; 
 }
 
 export interface ExperienceItem {
@@ -33,26 +39,34 @@ export interface CertificationItem {
 }
 
 export interface JobMatchAnalysis {
-  matchScore?: number; // e.g., 85 for 85%
-  strengths?: string[]; // e.g., "Excellent alignment with required JavaScript skills."
-  gaps?: string[]; // e.g., "Consider highlighting project management experience mentioned in the job description."
+  matchScore?: number; 
+  strengths?: string[]; 
+  gaps?: string[]; 
+}
+
+export interface AtsAuditResult {
+  parseabilityScore: number;
+  missingCriticalKeywords: string[];
+  formattingIssues: string[];
+  sectionHeaderStandardization: 'Pass' | 'Fail';
+  estimatedHumanReviewStatus: 'Auto-Reject' | 'Review' | 'Priority';
 }
 
 export interface ResumeData {
   name: string;
-  jobTitle?: string; // Optional job title under name
+  jobTitle?: string; 
   contact: ContactInfo;
   summary: string;
   experience: ExperienceItem[];
   education: EducationItem[];
   licensesCertifications?: CertificationItem[];
-  skills: string[]; // Can be an array of strings or a single string with separators
-  tailoringKeywords?: string[]; // Keywords AI focused on from job description
-  tailoringStrength?: TailoringStrength; // AI's assessment of tailoring quality
-  jobMatchAnalysis?: JobMatchAnalysis; // AI's assessment of resume to job description match
+  skills: string[]; 
+  tailoringKeywords?: string[]; 
+  tailoringStrength?: TailoringStrength; 
+  jobMatchAnalysis?: JobMatchAnalysis; 
+  suggestedHeadshotPrompt?: string; 
 }
 
-// Props for ResumeInput component
 export interface ResumeInputProps {
   rawText: string;
   onRawTextChange: (text: string) => void;
@@ -72,11 +86,21 @@ export interface ResumeInputProps {
   onCoverLetterToneChange: (tone: CoverLetterTone) => void;
   onGenerateInterviewQuestions: () => void;
   isGeneratingInterviewQuestions: boolean;
+  settings: ResumeSettings;
+  onSettingsChange: (settings: ResumeSettings) => void;
+  
+  // New Props for Image & Research
+  onGenerateHeadshot: (size: '1K' | '2K' | '4K') => void;
+  isGeneratingHeadshot: boolean;
+  onResearchTrends: () => void;
+  isResearching: boolean;
+  industryTrends: string | null;
 }
 
-// Props for ResumePreview component
 export interface ResumePreviewProps {
   data: ResumeData;
   template: TemplateName;
   fontGroup: FontGroupName;
+  settings: ResumeSettings;
+  headshotImage: string | null; 
 }

@@ -1,486 +1,483 @@
 
-import React, { useState, useEffect, useRef } from 'react';
-import type { ResumePreviewProps, ContactInfo, ExperienceItem, EducationItem, CertificationItem } from '../types';
-import { MailIcon, PhoneIcon, LinkedInIcon, GlobeAltIcon, LocationMarkerIcon, DownloadIcon, ClipboardCopyIcon, CheckIcon, ShareIcon, TwitterXIcon, PrinterIcon } from './icons';
+import React, { useState, useRef, useEffect } from 'react';
+import type { ResumePreviewProps, ResumeData, ResumeSettings } from '../types';
+import { MailIcon, PhoneIcon, LinkedInIcon, LocationMarkerIcon, DownloadIcon, ClipboardCopyIcon, CheckIcon, GlobeAltIcon, DocumentTextIcon, XMarkIcon } from './icons';
 import { downloadResumeAsPdf } from '../utils/downloadUtils';
 import { linkifyText, formatResumeDataAsText } from '../utils/textUtils';
 
-const SectionTitleClassic: React.FC<{ title: string }> = ({ title }) => (
-  <h2 className="text-xs font-bold tracking-wider uppercase text-gray-500 pb-1.5 mb-3 border-b border-gray-300">
-    {title}
-  </h2>
-);
-
-const SectionTitleModern: React.FC<{ title: string }> = ({ title }) => (
-  <h2 className="text-sm font-semibold tracking-wider uppercase text-accent pb-1 mb-4">
-    {title}
-  </h2>
-);
-
-const SectionTitleModernAlt: React.FC<{ title: string }> = ({ title }) => (
-  <h2 className="text-sm font-semibold tracking-wider uppercase text-sky-500 pb-1.5 mb-3 border-b-2 border-sky-500/30">
-    {title}
-  </h2>
-);
-
-const ContactDetail: React.FC<{ icon: React.ReactNode, text?: string, href?: string, template: 'classic' | 'modern-compact' | 'modern-alt' }> = ({ icon, text, href, template }) => {
-  if (!text) return null;
-  const textMarginClass = template === 'modern-compact' ? 'ml-2' : 'ml-1.5';
-  const content = (
-    <>
-      {icon}
-      <span className={`${textMarginClass} ${template === 'modern-compact' || template === 'modern-alt' ? 'group-hover:underline' : ''}`}>{text}</span>
-    </>
-  );
-  const baseClasses = `flex items-center group transition-colors ${template === 'modern-compact' || template === 'modern-alt' ? 'text-gray-600 hover:text-accent' : 'text-gray-700 hover:text-accent'}`;
-
-  if (href) {
-    return (
-      <a href={href} target="_blank" rel="noopener noreferrer" className={baseClasses}>
-        {content}
-      </a>
-    );
-  }
-  return <div className={baseClasses}>{content}</div>;
-};
-
-
-export const ResumePreview: React.FC<ResumePreviewProps> = ({ data, template, fontGroup }) => {
-  const { name, jobTitle, contact, summary, experience, education, licensesCertifications, skills } = data;
+export const ResumePreview: React.FC<ResumePreviewProps> = ({ data, template, fontGroup, settings, headshotImage }) => {
   const [isCopied, setIsCopied] = useState(false);
-  const [isShareMenuOpen, setIsShareMenuOpen] = useState(false);
-  const [isPrintFriendly, setIsPrintFriendly] = useState(false);
-  const shareMenuRef = useRef<HTMLDivElement>(null);
+  const [showDownloadPopover, setShowDownloadPopover] = useState(false);
+  const [filename, setFilename] = useState(data.name ? `${data.name.replace(/\s+/g, '_')}_Resume` : 'Resume');
+  const popoverRef = useRef<HTMLDivElement>(null);
+
+  const handleDownload = async () => {
+    setShowDownloadPopover(false);
+    const element = document.getElementById('resume-inner-content-for-pdf');
+    if (element) await downloadResumeAsPdf(element, filename);
+  };
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(formatResumeDataAsText(data));
+    setIsCopied(true);
+    setTimeout(() => setIsCopied(false), 2000);
+  };
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (shareMenuRef.current && !shareMenuRef.current.contains(event.target as Node)) {
-        setIsShareMenuOpen(false);
-      }
+        if (popoverRef.current && !popoverRef.current.contains(event.target as Node)) {
+            setShowDownloadPopover(false);
+        }
     };
-
-    document.addEventListener('mousedown', handleClickOutside);
+    if(showDownloadPopover) {
+        document.addEventListener('mousedown', handleClickOutside);
+    }
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, []);
+        document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showDownloadPopover]);
 
-  const handleDownload = async () => {
-    const resumeContentElement = document.getElementById('resume-inner-content-for-pdf'); 
-    if (resumeContentElement) {
-      await downloadResumeAsPdf(resumeContentElement, name || 'Resume');
-    } else {
-      console.error("Resume inner content element not found for PDF generation.");
-      alert("Error preparing resume for download. Please try again.");
+
+  const getFontClass = () => {
+    switch(fontGroup) {
+      case 'serif': return 'font-serif';
+      case 'mono': return 'font-mono';
+      default: return 'font-sans';
     }
   };
 
-  const handleCopyToClipboard = () => {
-    const resumeText = formatResumeDataAsText(data);
-    navigator.clipboard.writeText(resumeText).then(() => {
-      setIsCopied(true);
-      setTimeout(() => setIsCopied(false), 2000); // Reset after 2 seconds
-    }).catch(err => {
-      console.error('Failed to copy text: ', err);
-      alert('Failed to copy resume to clipboard. Please try again.');
-    });
-  };
-  
-  // Sharing constants
-  const shareUrl = encodeURIComponent('https://ai-resume-artisan.example.dev'); // Placeholder for actual URL
-  const shareTextSuccess = encodeURIComponent(`I just crafted a professional, AI-tailored resume with AI Resume Artisan! Check out this awesome tool for your job search. #AI #ResumeBuilder #JobSuccess`);
-  const twitterShareUrl = `https://twitter.com/intent/tweet?url=${shareUrl}&text=${shareTextSuccess}`;
-  const linkedinShareUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${shareUrl}`;
-
-  const getDisplayUrl = (url: string) => {
-    try {
-      const urlObj = new URL(url.startsWith('http') ? url : `https://${url}`);
-      let display = urlObj.hostname.replace(/^www\./, '');
-      if (urlObj.pathname !== '/' && urlObj.pathname.length < 20) display += urlObj.pathname;
-      else if (urlObj.pathname.length >= 20) display += urlObj.pathname.substring(0,17) + "...";
-      return display;
-    } catch (e) {
-      return url.length > 30 ? url.substring(0,27) + "..." : url;
+  // --- Dynamic Settings Logic ---
+  const getMarginClass = () => {
+    switch(settings.margin) {
+        case 'compact': return 'p-8'; // ~2cm
+        case 'generous': return 'p-14'; // ~3.5cm
+        case 'standard': default: return 'p-12'; // ~3cm
     }
   };
-  
-  const getFullUrl = (urlCandidate: string) => {
-    if (!urlCandidate) return '#';
-    if (urlCandidate.startsWith('http://') || urlCandidate.startsWith('https://')) {
-        return urlCandidate;
-    }
-    return `https://${urlCandidate}`;
+
+  const getFontSizeClass = () => {
+      switch(settings.fontSizeScale) {
+          case 'small': return 'text-[9pt]'; 
+          case 'large': return 'text-[11pt]'; 
+          case 'medium': default: return 'text-[10pt]'; 
+      }
   };
 
-  const SectionTitleComponent = 
-    template === 'modern-compact' ? SectionTitleModern :
-    template === 'modern-alt' ? SectionTitleModernAlt :
-    SectionTitleClassic;
+  // --- Styles for A4 Paper ---
+  const a4Styles = {
+      width: '210mm',
+      minHeight: '297mm',
+      backgroundColor: 'white',
+      color: '#1e293b', // slate-800
+      boxSizing: 'border-box' as const,
+  };
 
-  const iconSize = template === 'modern-compact' ? "w-4 h-4" : "w-3.5 h-3.5";
-  const commonButtonClasses = "p-2 bg-sky-600 text-white rounded-full hover:bg-sky-700 transition-colors focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2";
-
+  // --- RENDER HELPERS ---
+  const renderContactLine = (separator = ' | ') => (
+    <div className="flex flex-wrap items-center justify-center gap-x-1 text-inherit">
+      {data.contact.email && <span>{data.contact.email}</span>}
+      {data.contact.phone && <>{separator}<span>{data.contact.phone}</span></>}
+      {data.contact.location && <>{separator}<span>{data.contact.location}</span></>}
+      {data.contact.linkedin && <>{separator}<span>LinkedIn</span></>}
+      {data.contact.portfolio && <>{separator}<span>Portfolio</span></>}
+    </div>
+  );
 
   return (
-    <div 
-      id="resume-preview-content-area"
-      className={`bg-white text-gray-800 p-6 sm:p-8 shadow-resume text-[10pt] leading-relaxed A4-aspect-ratio-approx relative template-${template} font-group-${fontGroup} ${isPrintFriendly ? 'print-friendly' : ''}`}
-    >
-      <div className="absolute top-4 right-4 flex space-x-2 print:hidden print-hidden-in-view">
-        <div className="relative" ref={shareMenuRef}>
-            <button
-              onClick={() => setIsShareMenuOpen(!isShareMenuOpen)}
-              title="Share the app"
-              aria-label="Share the app"
-              className={commonButtonClasses}
-            >
-              <ShareIcon className="w-5 h-5" />
+    <div className={`relative group ${getFontClass()} antialiased`}>
+      {/* Floating Action Bar (Platinum Style) */}
+      <div className={`absolute top-4 right-[-60px] flex flex-col space-y-3 transition-all duration-500 z-50 ${showDownloadPopover ? 'opacity-100 right-[-60px]' : 'opacity-0 group-hover:opacity-100 group-hover:right-[-50px]'}`}>
+        <button onClick={handleCopy} className="p-3 bg-white text-obsidian rounded-full shadow-2xl border border-gray-200 hover:scale-110 transition-transform relative group/tooltip">
+            {isCopied ? <CheckIcon className="w-4 h-4 text-green-600"/> : <ClipboardCopyIcon className="w-4 h-4"/>}
+            <span className="absolute right-12 bg-gray-900 text-white text-xs py-1 px-2 rounded opacity-0 group-hover/tooltip:opacity-100 transition-opacity whitespace-nowrap">Copy Text</span>
+        </button>
+        
+        <div className="relative">
+            <button onClick={() => setShowDownloadPopover(!showDownloadPopover)} className="p-3 bg-obsidian text-white rounded-full shadow-2xl hover:scale-110 transition-transform relative group/tooltip">
+                <DownloadIcon className="w-4 h-4"/>
+                <span className="absolute right-12 bg-gray-900 text-white text-xs py-1 px-2 rounded opacity-0 group-hover/tooltip:opacity-100 transition-opacity whitespace-nowrap">Export PDF</span>
             </button>
-            {isShareMenuOpen && (
-              <div
-                className="absolute right-0 mt-2 w-52 bg-white rounded-md shadow-lg py-1 z-10 border border-gray-200 animate-fade-in-up"
-                style={{ animationDuration: '0.2s' }}
-              >
-                <div className="px-4 py-2 text-xs text-gray-500">Share your success!</div>
-                <a
-                  href={twitterShareUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                >
-                  <TwitterXIcon className="w-4 h-4 mr-3 text-gray-800" />
-                  Share on X (Twitter)
-                </a>
-                <a
-                  href={linkedinShareUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                >
-                  <LinkedInIcon className="w-4 h-4 mr-3 text-[#0077B5]" />
-                  Share on LinkedIn
-                </a>
-              </div>
+            
+            {/* Professional Export Popover */}
+            {showDownloadPopover && (
+                <div ref={popoverRef} className="absolute right-14 top-0 w-64 bg-white rounded-xl shadow-2xl border border-gray-100 p-4 animate-fade-in-up z-50">
+                    <div className="flex justify-between items-center mb-3 pb-2 border-b border-gray-100">
+                        <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Export Options</span>
+                        <button onClick={() => setShowDownloadPopover(false)}><XMarkIcon className="w-4 h-4 text-gray-400 hover:text-gray-600"/></button>
+                    </div>
+                    <div className="mb-3">
+                        <label className="block text-xs text-gray-500 mb-1">Filename</label>
+                        <div className="flex items-center border border-gray-200 rounded px-2 py-1.5 focus-within:ring-1 focus-within:ring-gray-400">
+                            <DocumentTextIcon className="w-4 h-4 text-gray-400 mr-2"/>
+                            <input 
+                                type="text" 
+                                value={filename}
+                                onChange={(e) => setFilename(e.target.value)}
+                                className="w-full text-sm text-gray-700 outline-none"
+                            />
+                            <span className="text-xs text-gray-400 ml-1">.pdf</span>
+                        </div>
+                    </div>
+                    <button 
+                        onClick={handleDownload}
+                        className="w-full bg-gray-900 text-white text-xs font-bold py-2 rounded hover:bg-black transition-colors"
+                    >
+                        Download PDF
+                    </button>
+                </div>
             )}
         </div>
-        <button
-          onClick={handleCopyToClipboard}
-          title={isCopied ? "Copied!" : "Copy Resume Text"}
-          aria-label={isCopied ? "Resume text copied to clipboard" : "Copy resume text to clipboard"}
-          className={`${commonButtonClasses} ${isCopied ? 'bg-green-500 hover:bg-green-600' : ''}`}
-        >
-          {isCopied ? <CheckIcon className="w-5 h-5" /> : <ClipboardCopyIcon className="w-5 h-5" />}
-        </button>
-        <button
-          onClick={() => setIsPrintFriendly(!isPrintFriendly)}
-          title={isPrintFriendly ? "Exit Print View" : "Enter Print View"}
-          aria-label={isPrintFriendly ? "Exit print-friendly view" : "Enter print-friendly view"}
-          className={`${commonButtonClasses} ${isPrintFriendly ? 'bg-red-500 hover:bg-red-600' : ''}`}
-        >
-          <PrinterIcon className="w-5 h-5" />
-        </button>
-        <button
-          id="download-resume-pdf-button" 
-          onClick={handleDownload}
-          title="Download Resume as PDF"
-          aria-label="Download Resume as PDF"
-          className={commonButtonClasses}
-        >
-          <DownloadIcon className="w-5 h-5" />
-        </button>
       </div>
-      
-      <div id="resume-inner-content-for-pdf"> 
-        {template === 'modern-alt' ? (
-          <>
-            {/* Header */}
-            <div className="text-center mb-6 pb-4 border-b-2 border-gray-200">
-              <h1 className="font-bold text-primary text-3xl tracking-wider">{name.toUpperCase()}</h1>
-              {jobTitle && <p className="font-medium text-lg text-secondary tracking-wide">{jobTitle}</p>}
-            </div>
 
-            <div className="flex gap-x-8">
-              {/* Main Column (Left) */}
-              <div className="w-[68%]">
-                {summary && (
-                  <section className="mb-5">
-                    <SectionTitleComponent title="Professional Summary" />
-                    <p className="text-gray-700 text-justify">{linkifyText(summary)}</p>
-                  </section>
-                )}
-                {experience && experience.length > 0 && (
-                  <section className="mb-5">
-                    <SectionTitleComponent title="Work Experience" />
-                    {experience.map((exp, index) => (
-                      <div key={index} className="mb-4 last:mb-0">
-                        <div className="flex justify-between items-baseline">
-                          <h3 className="font-bold text-primary text-base">{exp.role}</h3>
-                          <span className="text-gray-500 font-medium text-xs whitespace-nowrap pl-2">{exp.dates}</span>
-                        </div>
-                        <p className="font-semibold italic text-sm text-secondary mb-1.5">{exp.company}</p>
-                        <ul className="list-disc list-outside ml-4 text-gray-700 space-y-1">
-                          {exp.responsibilities.map((resp, i) => <li key={i} className="leading-normal">{linkifyText(resp.trim())}</li>)}
-                        </ul>
-                      </div>
-                    ))}
-                  </section>
-                )}
-                {education && education.length > 0 && (
-                  <section>
-                    <SectionTitleComponent title="Education" />
-                    {education.map((edu, index) => (
-                      <div key={index} className="mb-3 last:mb-0">
-                        <div className="flex justify-between items-baseline">
-                          <h3 className="font-bold text-primary text-base">{edu.degree}</h3>
-                           <span className="text-gray-500 font-medium text-xs whitespace-nowrap pl-2">{edu.details}</span>
-                        </div>
-                        <p className="italic text-sm text-secondary">{edu.institution}</p>
-                      </div>
-                    ))}
-                  </section>
-                )}
-              </div>
-              {/* Sidebar Column (Right) */}
-              <div className="w-[32%] border-l-2 border-gray-200 pl-6">
-                  <section className="mb-5">
-                    <SectionTitleComponent title="Contact" />
-                    <div className="space-y-2 text-sm">
-                        {contact.email && <ContactDetail template={template} icon={<MailIcon className="w-4 h-4 mt-0.5"/>} text={contact.email} href={`mailto:${contact.email}`} />}
-                        {contact.phone && <ContactDetail template={template} icon={<PhoneIcon className="w-4 h-4 mt-0.5"/>} text={contact.phone} href={`tel:${contact.phone}`} />}
-                        {contact.location && <ContactDetail template={template} icon={<LocationMarkerIcon className="w-4 h-4 mt-0.5"/>} text={contact.location} />}
-                        {contact.linkedin && <ContactDetail template={template} icon={<LinkedInIcon className="w-4 h-4 mt-0.5"/>} text={getDisplayUrl(contact.linkedin)} href={getFullUrl(contact.linkedin)} />}
-                        {contact.portfolio && <ContactDetail template={template} icon={<GlobeAltIcon className="w-4 h-4 mt-0.5"/>} text="Portfolio" href={getFullUrl(contact.portfolio)} />}
-                        {contact.website && !contact.portfolio && <ContactDetail template={template} icon={<GlobeAltIcon className="w-4 h-4 mt-0.5"/>} text="Website" href={getFullUrl(contact.website)} />}
-                    </div>
-                  </section>
-                  {skills && skills.length > 0 && (
-                    <section className="mb-5">
-                      <SectionTitleComponent title="Skills" />
-                      <div className="flex flex-wrap gap-1.5">
-                        {skills.map((skill, index) => (
-                          <span key={index} className="inline-block bg-sky-100 text-sky-800 text-xs font-medium px-2.5 py-1 rounded-full">
-                            {linkifyText(skill.trim())}
-                          </span>
-                        ))}
-                      </div>
-                    </section>
-                  )}
-                  {licensesCertifications && licensesCertifications.length > 0 && (
-                    <section>
-                      <SectionTitleComponent title="Certifications" />
-                      {licensesCertifications.map((cert, index) => (
-                        <div key={index} className="mb-3 last:mb-0">
-                          <h3 className="font-semibold text-primary text-sm">{linkifyText(cert.name)}</h3>
-                          <p className="italic text-xs text-secondary">{linkifyText(cert.issuer)}</p>
-                          {cert.date && <p className="text-xs text-gray-500">{cert.date}</p>}
-                        </div>
-                      ))}
-                    </section>
-                  )}
-              </div>
-            </div>
-             <div className="mt-6 pt-4 text-center text-xs text-gray-400 print:block border-t-2 border-gray-200">
-                {name.toUpperCase()} - Page 1 of 1
-            </div>
-          </>
-        ) : (
-          <>
-            {/* Header */}
-            <div className={`text-center mb-4 ${template === 'modern-compact' ? 'modern-header pb-2' : 'classic-header'}`}>
-              <h1 className={`font-bold text-primary ${template === 'modern-compact' ? 'text-3xl' : 'text-2xl sm:text-3xl'}`}>{name.toUpperCase()}</h1>
-              {jobTitle && <p className={`font-medium ${template === 'modern-compact' ? 'text-lg text-accent' : 'text-md text-secondary'}`}>{jobTitle}</p>}
-            </div>
-            
-            {/* Contact Info */}
-            <div className={`flex flex-wrap justify-center items-center mb-4 pb-2 ${
-              template === 'modern-compact' 
-                ? 'gap-x-4 gap-y-2 modern-contact' 
-                : 'text-xs gap-x-3 gap-y-1 text-gray-600 border-b border-gray-300'
-            }`}>
-              {contact.email && <ContactDetail template={template} icon={<MailIcon className={iconSize}/>} text={contact.email} href={`mailto:${contact.email}`} />}
-              {contact.phone && <ContactDetail template={template} icon={<PhoneIcon className={iconSize}/>} text={contact.phone} href={`tel:${contact.phone}`} />}
-              {contact.location && <ContactDetail template={template} icon={<LocationMarkerIcon className={iconSize}/>} text={contact.location} />}
-              {contact.linkedin && <ContactDetail template={template} icon={<LinkedInIcon className={iconSize}/>} text={getDisplayUrl(contact.linkedin)} href={getFullUrl(contact.linkedin)} />}
-              {contact.portfolio && <ContactDetail template={template} icon={<GlobeAltIcon className={iconSize}/>} text="Portfolio" href={getFullUrl(contact.portfolio)} />}
-              {contact.website && !contact.portfolio && <ContactDetail template={template} icon={<GlobeAltIcon className={iconSize}/>} text="Website" href={getFullUrl(contact.website)} />}
-            </div>
-
-            {/* Summary */}
-            {summary && (
-              <section className="mb-4">
-                <SectionTitleComponent title="Summary" />
-                <p className="text-gray-700 text-justify">{linkifyText(summary)}</p>
-              </section>
-            )}
-
-            {/* Experience */}
-            {experience && experience.length > 0 && (
-              <section className="mb-4">
-                <SectionTitleComponent title="Experience" />
-                {experience.map((exp, index) => (
-                  <div key={index} className={`last:mb-0 ${template === 'modern-compact' ? 'mb-4' : 'mb-3.5'}`}>
-                    <div className="flex justify-between items-baseline">
-                       <h3 className={`font-bold text-primary ${template === 'modern-compact' ? 'text-base mb-1' : 'text-sm mb-0.5'}`}>{exp.role}</h3>
-                      <span className={`text-gray-500 font-medium whitespace-nowrap pl-2 ${template === 'modern-compact' ? 'text-sm' : 'text-xs'}`}>{exp.dates}</span>
-                    </div>
-                    <p className={`font-semibold italic ${template === 'modern-compact' ? 'text-sm text-gray-600 mb-1.5' : 'text-xs text-secondary mb-0.5'}`}>{exp.company}</p>
-                    <ul className={`list-disc list-outside ml-3.5 text-gray-700 ${template === 'modern-compact' ? 'space-y-1.5' : 'space-y-1'}`}>
-                      {exp.responsibilities.map((resp, i) => (
-                        <li key={i} className="leading-normal">{linkifyText(resp.trim())}</li>
-                      ))}
-                    </ul>
-                  </div>
-                ))}
-              </section>
-            )}
-
-            {/* Education */}
-            {education && education.length > 0 && (
-              <section className="mb-4">
-                <SectionTitleComponent title="Education" />
-                {education.map((edu, index) => (
-                  <div key={index} className={`last:mb-0 ${template === 'modern-compact' ? 'mb-3' : 'mb-2.5'}`}>
-                     <div className="flex justify-between items-baseline">
-                      <h3 className={`font-bold text-primary ${template === 'modern-compact' ? 'text-base' : 'text-sm'}`}>{edu.degree}</h3>
-                       <span className={`text-gray-500 font-medium whitespace-nowrap pl-2 ${template === 'modern-compact' ? 'text-sm' : 'text-xs'}`}>
-                         {edu.details.includes('Present') || edu.details.match(/\d{4}\s*-\s*\d{4}/) || (edu.details.match(/\d{4}/) && !edu.institution.includes(edu.details)) ? '' : edu.details.split('|')[0].trim()}
-                       </span>
-                    </div>
-                    <p className={`italic ${template === 'modern-compact' ? 'text-sm text-gray-600' : 'text-xs text-secondary'}`}>
-                      {edu.institution}
-                      {' '}
-                      {linkifyText(
-                        (edu.details.includes('|') ? 
-                        `| ${edu.details.split('|')[1].trim()}` : 
-                        (edu.details.includes('Present') || edu.details.match(/\d{4}\s*-\s*\d{4}/) || edu.details.match(/\d{4}/) ? edu.details : '')).trim()
-                      )}
-                    </p>
-                  </div>
-                ))}
-              </section>
-            )}
-            
-            {/* Licenses & Certifications */}
-            {licensesCertifications && licensesCertifications.length > 0 && (
-              <section className="mb-4">
-                <SectionTitleComponent title="Licenses & Certifications" />
-                {licensesCertifications.map((cert, index) => (
-                  <div key={index} className={`last:mb-0 ${template === 'modern-compact' ? 'mb-2.5' : 'mb-2'}`}>
-                    <div className="flex justify-between items-baseline">
-                      <h3 className={`font-semibold text-primary ${template === 'modern-compact' ? 'text-base' : 'text-sm'}`}>{linkifyText(cert.name)}</h3>
-                      {cert.date && <span className={`text-gray-500 whitespace-nowrap pl-2 ${template === 'modern-compact' ? 'text-sm' : 'text-xs'}`}>{cert.date}</span>}
-                    </div>
-                    <p className={`italic ${template === 'modern-compact' ? 'text-sm text-gray-600' : 'text-xs text-secondary'}`}>{linkifyText(cert.issuer)}</p>
-                  </div>
-                ))}
-              </section>
-            )}
-
-            {/* Skills */}
-            {skills && skills.length > 0 && (
-              <section className={template === 'modern-compact' ? 'skills-modern' : ''}>
-                <SectionTitleComponent title="Skills" />
-                {template === 'modern-compact' ? (
-                  <div className="flex flex-wrap">
-                    {skills.map((skill, index) => (
-                      <span key={index} className="inline-block bg-sky-100 text-accent text-xs font-medium px-2.5 py-1 rounded-full mr-1.5 mb-1.5">
-                        {linkifyText(skill.trim())}
-                      </span>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-gray-700 flex flex-wrap">
-                    {skills.map((skill, index) => (
-                      <React.Fragment key={index}>
-                        <span>{linkifyText(skill.trim())}</span>
-                        {index < skills.length - 1 && <span className="mx-2 text-gray-400">&bull;</span>}
-                      </React.Fragment>
-                    ))}
-                  </p>
-                )}
-              </section>
-            )}
-            
-            <div className={`mt-6 pt-2 text-center text-xs text-gray-400 print:block ${template === 'classic' ? 'border-t border-gray-300' : ''}`}>
-              {name.toUpperCase()} - Page 1 of 1
-            </div>
-          </>
-        )}
-      </div> 
-
-       <style>
-        {`
-          .print-friendly .print-hidden-in-view {
-            display: none !important;
-          }
-          .print-friendly {
-            box-shadow: none !important;
-          }
-          .A4-aspect-ratio-approx {
-            width: 100%;
-            max-width: 800px; 
-            margin-left: auto;
-            margin-right: auto;
-          }
+      {/* Main Resume Container - A4 STRICT */}
+      <div 
+        id="resume-inner-content-for-pdf"
+        className={`shadow-2xl overflow-hidden relative mx-auto ${getFontSizeClass()}`}
+        style={a4Styles}
+      >
+        <div className={`h-full w-full ${getMarginClass()} flex flex-col`}>
           
-          .font-group-sans-serif {
-            font-family: 'Lato', sans-serif;
-          }
-          .font-group-serif {
-            font-family: 'Merriweather', serif;
-          }
-          .font-group-serif h1, .font-group-serif h2, .font-group-serif h3, .font-group-serif strong {
-             font-family: 'Merriweather', serif; 
-          }
+          {/* --- TEMPLATE LOGIC --- */}
+          {(() => {
+            switch(template) {
+              case 'classic-serif':
+                return (
+                  // HARVARD CLASSIC STYLE (Strict Linear, Times New Roman feel)
+                  <div className="h-full font-serif text-gray-900">
+                     <div className="text-center border-b-2 border-gray-900 pb-4 mb-6">
+                        <h1 className="text-3xl font-bold uppercase tracking-widest mb-2">{data.name}</h1>
+                        <div className="text-sm italic mb-2">{data.jobTitle}</div>
+                        <div className="text-xs text-gray-600">{renderContactLine(' • ')}</div>
+                     </div>
 
-          .template-modern-compact .modern-contact {
-            border-bottom: 1px solid #e2e8f0; /* slate-200 */
-          }
-          .template-modern-compact p, .template-modern-alt p {
-            font-size: 9.5pt; 
-            line-height: 1.65; 
-          }
-          .template-modern-compact li, .template-modern-alt li { 
-            font-size: 9.5pt;
-            line-height: 1.65;
-          }
-          .template-modern-compact.font-group-serif h1,
-          .template-modern-compact.font-group-serif h2,
-          .template-modern-compact.font-group-serif h3,
-          .template-modern-alt.font-group-serif h1,
-          .template-modern-alt.font-group-serif h2,
-          .template-modern-alt.font-group-serif h3 {
-            font-family: 'Merriweather', serif;
-          }
-           .template-modern-compact.font-group-sans-serif h1,
-           .template-modern-compact.font-group-sans-serif h2,
-           .template-modern-compact.font-group-sans-serif h3,
-           .template-modern-alt.font-group-sans-serif h1,
-           .template-modern-alt.font-group-sans-serif h2,
-           .template-modern-alt.font-group-sans-serif h3 {
-            font-family: 'Lato', sans-serif;
-          }
+                     {data.summary && (
+                       <div className="mb-5">
+                         <h3 className="text-sm font-bold uppercase border-b border-gray-400 mb-2 pb-1">Professional Summary</h3>
+                         <p className="text-justify leading-relaxed">{linkifyText(data.summary)}</p>
+                       </div>
+                     )}
 
-          @media print {
-            body {
-              -webkit-print-color-adjust: exact;
-              print-color-adjust: exact;
+                     <div className="mb-5">
+                       <h3 className="text-sm font-bold uppercase border-b border-gray-400 mb-3 pb-1">Experience</h3>
+                       {data.experience.map((exp, i) => (
+                         <div key={i} className="mb-4">
+                           <div className="flex justify-between font-bold text-sm">
+                             <span>{exp.company}</span>
+                             <span>{exp.dates}</span>
+                           </div>
+                           <div className="italic text-sm mb-1">{exp.role}</div>
+                           <ul className="list-disc ml-5 space-y-1">
+                             {exp.responsibilities.map((r, j) => <li key={j} className="pl-1 text-gray-800">{linkifyText(r)}</li>)}
+                           </ul>
+                         </div>
+                       ))}
+                     </div>
+
+                     <div className="mb-5">
+                        <h3 className="text-sm font-bold uppercase border-b border-gray-400 mb-3 pb-1">Education</h3>
+                        {data.education.map((edu, i) => (
+                          <div key={i} className="mb-2">
+                             <div className="flex justify-between font-bold text-sm">
+                               <span>{edu.institution}</span>
+                               <span className="font-normal">{edu.details}</span>
+                             </div>
+                             <div className="italic text-sm">{edu.degree}</div>
+                          </div>
+                        ))}
+                     </div>
+
+                     <div className="mt-auto">
+                        <h3 className="text-sm font-bold uppercase border-b border-gray-400 mb-2 pb-1">Skills</h3>
+                        <div className="text-sm">{data.skills.join(' • ')}</div>
+                     </div>
+                  </div>
+                );
+
+              case 'minimal-sans':
+                return (
+                  // SILICON VALLEY MINIMALIST (Clean, Left-Aligned, Whitespace heavy)
+                  <div className="h-full font-sans text-slate-800">
+                      <div className="mb-8">
+                         <h1 className="text-4xl font-extrabold tracking-tight text-black mb-1">{data.name}</h1>
+                         <p className="text-lg text-slate-500 mb-3 font-medium">{data.jobTitle}</p>
+                         <div className="text-xs text-slate-400 font-mono">
+                            {data.contact.email}  /  {data.contact.phone}  /  {data.contact.location}
+                         </div>
+                      </div>
+
+                      {data.summary && (
+                        <div className="mb-8">
+                           <p className="text-slate-600 leading-relaxed max-w-2xl">{linkifyText(data.summary)}</p>
+                        </div>
+                      )}
+
+                      <div className="mb-8">
+                         <h3 className="text-xs font-bold text-slate-900 uppercase tracking-widest mb-4">Experience</h3>
+                         <div className="border-l-2 border-slate-100 pl-4 space-y-6">
+                            {data.experience.map((exp, i) => (
+                               <div key={i}>
+                                  <div className="flex items-baseline justify-between mb-1">
+                                     <h4 className="font-bold text-slate-900">{exp.role}</h4>
+                                     <span className="text-xs font-mono text-slate-400">{exp.dates}</span>
+                                  </div>
+                                  <div className="text-sm font-semibold text-slate-500 mb-2">{exp.company}</div>
+                                  <ul className="space-y-1 text-slate-600">
+                                     {exp.responsibilities.map((r, j) => <li key={j}>— {linkifyText(r)}</li>)}
+                                  </ul>
+                               </div>
+                            ))}
+                         </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-8 mt-auto pt-8 border-t border-slate-100">
+                         <div>
+                            <h3 className="text-xs font-bold text-slate-900 uppercase tracking-widest mb-3">Education</h3>
+                            {data.education.map((edu, i) => (
+                               <div key={i} className="mb-3">
+                                  <div className="font-bold text-sm">{edu.institution}</div>
+                                  <div className="text-xs text-slate-500">{edu.degree}</div>
+                               </div>
+                            ))}
+                         </div>
+                         <div>
+                            <h3 className="text-xs font-bold text-slate-900 uppercase tracking-widest mb-3">Expertise</h3>
+                            <div className="flex flex-wrap gap-2">
+                               {data.skills.map(s => <span key={s} className="bg-slate-50 text-slate-600 px-2 py-1 rounded text-xs font-medium">{s}</span>)}
+                            </div>
+                         </div>
+                      </div>
+                  </div>
+                );
+
+              case 'swiss-grid':
+                return (
+                   // SWISS GRID (Tech Focused, Modular)
+                   <div className="h-full flex flex-col font-sans">
+                      <header className="bg-slate-900 text-white p-8 -mx-12 -mt-12 mb-8 flex justify-between items-center">
+                          <div>
+                             <h1 className="text-3xl font-bold mb-2">{data.name}</h1>
+                             <div className="text-slate-400 text-sm">{data.jobTitle}</div>
+                          </div>
+                          <div className="text-right text-xs text-slate-400 space-y-1 font-mono">
+                             {data.contact.email && <div>{data.contact.email}</div>}
+                             {data.contact.phone && <div>{data.contact.phone}</div>}
+                             {data.contact.linkedin && <div>LinkedIn Profile</div>}
+                          </div>
+                      </header>
+
+                      <div className="flex-1 grid grid-cols-12 gap-8">
+                          {/* Left Col - 8 cols */}
+                          <div className="col-span-8 space-y-8">
+                             {data.summary && (
+                                <section>
+                                   <h3 className="text-sm font-bold uppercase tracking-wider text-slate-900 mb-3 border-b-2 border-slate-900 pb-1 w-10">Bio</h3>
+                                   <p className="text-slate-700 leading-relaxed">{linkifyText(data.summary)}</p>
+                                </section>
+                             )}
+                             <section>
+                                <h3 className="text-sm font-bold uppercase tracking-wider text-slate-900 mb-4 border-b-2 border-slate-900 pb-1 w-10">Work</h3>
+                                <div className="space-y-6">
+                                    {data.experience.map((exp, i) => (
+                                        <div key={i}>
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <span className="font-bold text-slate-900">{exp.role}</span>
+                                                <span className="text-slate-300">/</span>
+                                                <span className="font-medium text-slate-700">{exp.company}</span>
+                                            </div>
+                                            <ul className="list-square ml-4 space-y-1 marker:text-slate-300">
+                                                {exp.responsibilities.map((r, j) => <li key={j} className="text-slate-600">{linkifyText(r)}</li>)}
+                                            </ul>
+                                        </div>
+                                    ))}
+                                </div>
+                             </section>
+                          </div>
+
+                          {/* Right Col - 4 cols */}
+                          <div className="col-span-4 space-y-8 bg-slate-50 p-6 -mr-12 -my-8 border-l border-slate-200">
+                             <section className="pt-8">
+                                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900 mb-4">Skills</h3>
+                                <div className="space-y-2">
+                                    {data.skills.map((s, i) => (
+                                        <div key={i} className="text-xs font-mono text-slate-600 border-b border-slate-200 pb-1">{s}</div>
+                                    ))}
+                                </div>
+                             </section>
+
+                             <section>
+                                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900 mb-4">Education</h3>
+                                <div className="space-y-4">
+                                   {data.education.map((edu, i) => (
+                                       <div key={i}>
+                                           <div className="font-bold text-xs text-slate-900">{edu.institution}</div>
+                                           <div className="text-xs text-slate-500">{edu.degree}</div>
+                                       </div>
+                                   ))}
+                                </div>
+                             </section>
+
+                             {headshotImage && (
+                                <div className="mt-8 border border-slate-200 p-1 bg-white shadow-sm">
+                                    <img src={headshotImage} alt="Headshot" className="w-full grayscale contrast-125"/>
+                                </div>
+                             )}
+                          </div>
+                      </div>
+                   </div>
+                );
+
+              case 'modern-compact':
+                // EXISTING MODERN SIDEBAR LAYOUT
+                return (
+                  <div className="h-full flex flex-col">
+                      <div className="flex h-full gap-8">
+                          <div className="w-1/3 border-r border-gray-200 pr-6">
+                               {headshotImage && (
+                                    <div className="w-32 h-32 rounded-lg overflow-hidden border border-gray-200 shadow-sm mb-6 mx-auto">
+                                        <img src={headshotImage} alt="Profile" className="w-full h-full object-cover grayscale hover:grayscale-0 transition-all" />
+                                    </div>
+                                )}
+                               <h1 className="text-3xl font-bold text-slate-800 tracking-tight mb-2 text-right break-words">{data.name}</h1>
+                               <p className="text-sm text-sky-700 font-medium text-right mb-6">{data.jobTitle}</p>
+                               
+                               <div className="text-right text-xs text-slate-500 space-y-2 mb-8">
+                                    {data.contact.email && <div>{data.contact.email}</div>}
+                                    {data.contact.phone && <div>{data.contact.phone}</div>}
+                                    {data.contact.location && <div>{data.contact.location}</div>}
+                               </div>
+    
+                               <div className="mb-8 text-right">
+                                    <h3 className="text-xs font-bold text-slate-900 uppercase tracking-widest mb-3">Skills</h3>
+                                    <div className="flex flex-wrap justify-end gap-2">
+                                        {data.skills.map(s => <span key={s} className="text-xs text-slate-600">{s}</span>)}
+                                    </div>
+                               </div>
+    
+                               {data.education.length > 0 && (
+                                   <div className="text-right">
+                                        <h3 className="text-xs font-bold text-slate-900 uppercase tracking-widest mb-3">Education</h3>
+                                        <div className="space-y-4">
+                                            {data.education.map((edu, i) => (
+                                                <div key={i}>
+                                                    <div className="font-bold text-slate-800 text-xs">{edu.institution}</div>
+                                                    <div className="text-[10px] text-sky-700">{edu.degree}</div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                   </div>
+                               )}
+                          </div>
+    
+                          <div className="flex-1 pt-2">
+                              {data.summary && (
+                                  <div className="mb-8">
+                                      <p className="text-slate-600 leading-relaxed font-medium text-sm">{data.summary}</p>
+                                  </div>
+                              )}
+                               <h3 className="text-xs font-bold text-slate-900 uppercase tracking-widest mb-6 border-b border-gray-200 pb-2">Experience</h3>
+                               <div className="space-y-6">
+                                    {data.experience.map((exp, i) => (
+                                        <div key={i}>
+                                            <div className="flex justify-between items-baseline mb-1">
+                                                <h4 className="font-bold text-slate-800">{exp.role}</h4>
+                                                <span className="text-xs font-mono text-slate-400">{exp.dates}</span>
+                                            </div>
+                                            <div className="text-xs font-semibold text-sky-700 mb-2 uppercase tracking-wide">{exp.company}</div>
+                                            <ul className="space-y-1.5">
+                                                {exp.responsibilities.map((r,j) => (
+                                                    <li key={j} className="text-sm text-slate-600 relative pl-3 before:content-['•'] before:absolute before:left-0 before:text-sky-300">
+                                                        {linkifyText(r)}
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    ))}
+                               </div>
+                          </div>
+                      </div>
+                  </div>
+                );
+
+              case 'enterprise-pro':
+              default:
+                 // EXISTING ENTERPRISE GOLD LAYOUT
+                 return (
+                    <div className="h-full">
+                        <div className="flex justify-between items-start mb-8 border-b border-gray-900 pb-6">
+                            <div className="flex-1">
+                                <h1 className="text-4xl font-bold uppercase tracking-wide text-gray-900 mb-2">{data.name}</h1>
+                                <p className="text-lg text-gray-600 font-serif italic mb-4">{data.jobTitle}</p>
+                                
+                                <div className="flex flex-wrap gap-x-6 gap-y-2 text-xs text-gray-500 font-medium tracking-wide uppercase">
+                                    {data.contact.location && <span className="flex items-center"><LocationMarkerIcon className="w-3 h-3 mr-1"/> {data.contact.location}</span>}
+                                    {data.contact.phone && <span className="flex items-center"><PhoneIcon className="w-3 h-3 mr-1"/> {data.contact.phone}</span>}
+                                    {data.contact.email && <span className="flex items-center"><MailIcon className="w-3 h-3 mr-1"/> {data.contact.email}</span>}
+                                    {data.contact.linkedin && <span className="flex items-center"><LinkedInIcon className="w-3 h-3 mr-1"/> LinkedIn</span>}
+                                </div>
+                            </div>
+                            {headshotImage && (
+                                <div className="w-24 h-24 rounded-full overflow-hidden border-2 border-gray-200 shadow-lg ml-6 flex-shrink-0">
+                                    <img src={headshotImage} alt="Professional Headshot" className="w-full h-full object-cover" />
+                                </div>
+                            )}
+                        </div>
+        
+                        {data.summary && (
+                            <div className={`mb-6`}>
+                                <h3 className="text-xs font-bold text-gray-900 uppercase tracking-[0.2em] mb-3">Executive Profile</h3>
+                                <p className="text-justify leading-relaxed text-gray-700">{linkifyText(data.summary)}</p>
+                            </div>
+                        )}
+        
+                        <div className={`mb-6`}>
+                            <h3 className="text-xs font-bold text-gray-900 uppercase tracking-[0.2em] mb-4">Professional Experience</h3>
+                            <div className={`${settings.lineHeight === 'tight' ? 'space-y-4' : 'space-y-6'}`}>
+                                {data.experience.map((exp, i) => (
+                                    <div key={i}>
+                                        <div className="flex justify-between items-baseline mb-1">
+                                            <span className="font-bold text-base text-gray-900">{exp.company}</span>
+                                            <span className="text-xs font-semibold text-gray-500 text-right">{exp.dates}</span>
+                                        </div>
+                                        <div className="text-sm font-serif italic text-gray-700 mb-2">{exp.role}</div>
+                                        <ul className={`list-disc ml-4 text-gray-600 marker:text-gray-400 space-y-1`}>
+                                            {exp.responsibilities.map((r, j) => (
+                                                <li key={j} className="pl-1">{linkifyText(r)}</li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+        
+                        <div className={`mb-6`}>
+                            <h3 className="text-xs font-bold text-gray-900 uppercase tracking-[0.2em] mb-4">Education</h3>
+                            <div className="space-y-3">
+                                 {data.education.map((edu, i) => (
+                                    <div key={i} className="flex justify-between items-start">
+                                        <div>
+                                            <div className="font-bold text-gray-900">{edu.institution}</div>
+                                            <div className="italic text-gray-700 font-serif">{edu.degree}</div>
+                                        </div>
+                                    </div>
+                                 ))}
+                            </div>
+                        </div>
+        
+                        <div className="mt-auto pt-6 border-t border-gray-200">
+                            <h3 className="text-xs font-bold text-gray-900 uppercase tracking-[0.2em] mb-3">Core Competencies</h3>
+                            <div className="flex flex-wrap gap-x-2 gap-y-2 text-gray-600 text-xs">
+                                {data.skills.map((s, i) => (
+                                    <span key={i} className="px-2 py-1 bg-gray-100 rounded text-gray-700 border border-gray-200">{s}</span>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                 );
             }
-            .print\\:hidden { display: none !important; } 
-            .print\\:block { display: block; }
-            .shadow-resume { box-shadow: none; }
-            .A4-aspect-ratio-approx { 
-              max-width: 100%;
-              margin: 0;
-              padding: 0; 
-            }
-            #resume-inner-content-for-pdf {
-                width: 100%;
-                height: 100%;
-            }
-          }
-        `}
-      </style>
+          })()}
+          
+        </div>
+      </div>
     </div>
   );
 };

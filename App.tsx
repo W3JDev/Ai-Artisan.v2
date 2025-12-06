@@ -3,495 +3,572 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { ResumeInput } from './components/ResumeInput';
 import { ResumePreview } from './components/ResumePreview';
 import { CoverLetterPreview } from './components/CoverLetterPreview';
-import { generateResumeFromText, generateCoverLetterStream, getSuggestionForGap, generateInterviewQuestions } from './services/geminiService';
-import type { ResumeData, TemplateName, FontGroupName, TailoringStrength, CoverLetterTone } from './types';
+import { SettingsModal } from './components/SettingsModal';
+import { 
+  generateResumeFromText, 
+  generateCoverLetterStream, 
+  getSuggestionForGap, 
+  generateInterviewQuestions,
+  generateHeadshot,
+  researchIndustryTrends,
+  runAtsAudit
+} from './services/geminiService';
+import type { ResumeData, TemplateName, FontGroupName, CoverLetterTone, ResumeSettings, AtsAuditResult } from './types';
 import { LoadingSpinner } from './components/LoadingSpinner';
-import { LightBulbIcon, XMarkIcon } from './components/icons'; 
-import { CheckBadgeIcon } from './components/icons'; // Assuming CheckBadgeIcon is available
+import { 
+  LightBulbIcon, XMarkIcon, BriefcaseIcon, DocumentMagnifyingGlassIcon, 
+  SparklesIcon, UserGroupIcon, CogIcon, CheckIcon, CpuChipIcon, ExclamationTriangleIcon
+} from './components/icons';
 
-const SAMPLE_RAW_TEXT = `
-John Doe
-Senior Software Engineer
-john.doe@email.com | 555-123-4567 | linkedin.com/in/johndoe | San Francisco, CA
+// Sample Data
+const SAMPLE_RAW_TEXT = `John Doe
+Senior Product Lead
+john@example.com | 555-0199 | San Francisco, CA
 
-Professional Summary
-Experienced Senior Software Engineer with over 8 years of expertise in designing, developing, and deploying scalable web applications. Proficient in JavaScript, React, Node.js, and cloud technologies. Passionate about building high-quality software and leading technical teams to success.
+Innovative Product Leader with 8+ years driving SaaS growth.
+Experience:
+TechFlow Inc - Senior PM (2020-Present)
+- Led AI integration boosting retention by 40%.
+- Managed cross-functional team of 15.
+StartupX - Product Manager (2016-2020)
+- Scaled user base from 0 to 100k.
+Education: MBA, Stanford.`;
 
-Experience
-Tech Solutions Inc. - Senior Software Engineer | Jan 2018 - Present
-- Led the development of a new microservices architecture, improving system scalability by 50%.
-- Mentored a team of 4 junior engineers, fostering a culture of collaboration and code quality.
-- Developed and maintained a high-traffic e-commerce platform using React, Redux, and Node.js.
-- Implemented CI/CD pipelines using Jenkins and Docker, reducing deployment time by 75%.
+const SAMPLE_JOB_DESCRIPTION = `Looking for a Senior Product Lead to drive AI initiatives. Must have experience with LLMs, agile methodologies, and team leadership.`;
 
-Web Innovators - Software Engineer | Jun 2015 - Dec 2017
-- Contributed to the development of a client-facing SaaS application.
-- Wrote clean, maintainable, and well-tested code.
-- Collaborated with product managers and designers to deliver new features.
-
-Education
-University of California, Berkeley - B.S. in Computer Science | 2011 - 2015
-
-Skills
-- Languages: JavaScript, TypeScript, Python
-- Frontend: React, Redux, HTML5, CSS3, Webpack
-- Backend: Node.js, Express, REST APIs
-- Databases: PostgreSQL, MongoDB
-- Cloud/DevOps: AWS, Docker, Jenkins, Kubernetes
-`;
-
-const SAMPLE_JOB_DESCRIPTION = `
-Job Title: Senior Frontend Engineer
-Location: San Francisco, CA
-
-We are looking for a passionate Senior Frontend Engineer to join our dynamic team. You will be responsible for building and maintaining our user-facing web applications.
-
-Responsibilities:
-- Develop new user-facing features using React.js.
-- Build reusable components and front-end libraries for future use.
-- Translate designs and wireframes into high-quality code.
-- Optimize components for maximum performance across a vast array of web-capable devices and browsers.
-- Work closely with product managers, designers, and other engineers.
-
-Qualifications:
-- 5+ years of professional experience in software development.
-- Strong proficiency in JavaScript, including DOM manipulation and the JavaScript object model.
-- Thorough understanding of React.js and its core principles.
-- Experience with popular React.js workflows (such as Flux or Redux).
-- Familiarity with modern front-end build pipelines and tools.
-- Experience with RESTful APIs.
-- Knowledge of modern authorization mechanisms, such as JSON Web Token.
-`;
+const STORAGE_KEYS = {
+    RAW_TEXT: 'artisan_raw_text',
+    JOB_DESC: 'artisan_job_desc',
+    THEME: 'artisan_theme'
+};
 
 const App = () => {
+  // --- State ---
+  const [activeTab, setActiveTab] = useState<'resume' | 'cover-letter' | 'analysis'>('resume');
+  
   const [rawText, setRawText] = useState<string>('');
   const [jobDescription, setJobDescription] = useState<string>('');
   const [jobDescriptionUsedForLastResume, setJobDescriptionUsedForLastResume] = useState<string>('');
+  
   const [resumeData, setResumeData] = useState<ResumeData | null>(null);
   const [coverLetter, setCoverLetter] = useState<string>('');
+  const [interviewQuestions, setInterviewQuestions] = useState<string[] | null>(null);
+
+  // New Feature States
+  const [headshotImage, setHeadshotImage] = useState<string | null>(null);
+  const [isGeneratingHeadshot, setIsGeneratingHeadshot] = useState<boolean>(false);
+  const [industryTrends, setIndustryTrends] = useState<string | null>(null);
+  const [isResearching, setIsResearching] = useState<boolean>(false);
+  
+  // ATS Audit State
+  const [atsAuditResult, setAtsAuditResult] = useState<AtsAuditResult | null>(null);
+  const [isAuditingAts, setIsAuditingAts] = useState<boolean>(false);
+
   const [isLoadingResume, setIsLoadingResume] = useState<boolean>(false);
   const [isLoadingCoverLetter, setIsLoadingCoverLetter] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const [selectedTemplate, setSelectedTemplate] = useState<TemplateName>('classic');
-  const [selectedFontGroup, setSelectedFontGroup] = useState<FontGroupName>('sans-serif');
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
+
+  // Settings
+  const [selectedTemplate, setSelectedTemplate] = useState<TemplateName>('enterprise-pro');
+  const [selectedFontGroup, setSelectedFontGroup] = useState<FontGroupName>('serif');
   const [coverLetterTone, setCoverLetterTone] = useState<CoverLetterTone>('professional');
-  const [interviewQuestions, setInterviewQuestions] = useState<string[] | null>(null);
-  const [isLoadingInterviewQuestions, setIsLoadingInterviewQuestions] = useState<boolean>(false);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
+  
+  // Layout Settings
+  const [layoutSettings, setLayoutSettings] = useState<ResumeSettings>({
+    margin: 'standard',
+    lineHeight: 'normal',
+    fontSizeScale: 'medium'
+  });
 
-
-  // State for gap suggestions
+  // Gap Analysis
   const [selectedGap, setSelectedGap] = useState<{ text: string; index: number } | null>(null);
   const [gapSuggestion, setGapSuggestion] = useState<string | null>(null);
   const [isLoadingGapSuggestion, setIsLoadingGapSuggestion] = useState<boolean>(false);
-  const [gapSuggestionError, setGapSuggestionError] = useState<string | null>(null);
 
-  // State and ref for applying suggestion UX
-  const [isApplyingSuggestion, setIsApplyingSuggestion] = useState<boolean>(false);
-  const resumePreviewRef = useRef<HTMLDivElement>(null);
+  // Layout refs
+  const previewRef = useRef<HTMLDivElement>(null);
 
-  // Ensure body background is consistent with the app's theme
+  // --- Persistence Logic ---
   useEffect(() => {
-    document.body.classList.remove('bg-dark', 'text-gray-200', 'antialiased'); // Remove landing page styles
-    document.body.classList.add('bg-gray-100'); // App's original body background
-    return () => {
-        // Potentially add back landing page styles if navigating back, though current flow doesn't support it
-        // document.body.classList.remove('bg-gray-100');
-    }
+    // Hydrate on mount
+    const savedText = localStorage.getItem(STORAGE_KEYS.RAW_TEXT);
+    const savedJd = localStorage.getItem(STORAGE_KEYS.JOB_DESC);
+    if (savedText) setRawText(savedText);
+    if (savedJd) setJobDescription(savedJd);
   }, []);
 
-  // Effect to scroll to the resume preview after a suggestion is applied
   useEffect(() => {
-    if (isApplyingSuggestion) {
-      // Success case: data is loaded and no longer loading
-      if (resumeData && !isLoadingResume) {
-        resumePreviewRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        setIsApplyingSuggestion(false); // Reset after scrolling
-      } 
-      // Error case: an error occurred and no longer loading
-      else if (error && !isLoadingResume) {
-        setIsApplyingSuggestion(false); // Reset on error as well
-      }
-    }
-  }, [resumeData, isLoadingResume, isApplyingSuggestion, error]);
+    // Auto-save debounce could be added here, but direct set for text inputs is usually fine for small data
+    localStorage.setItem(STORAGE_KEYS.RAW_TEXT, rawText);
+    setLastSaved(new Date());
+  }, [rawText]);
 
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.JOB_DESC, jobDescription);
+    setLastSaved(new Date());
+  }, [jobDescription]);
 
-  const handleGenerateResume = useCallback(async (
-    suggestionContext?: { originalGap: string; aiSuggestion: string; }
-  ) => {
-    if (!rawText.trim()) {
-      setError('Please provide your resume information.');
-      return;
+  const handleClearData = () => {
+    localStorage.removeItem(STORAGE_KEYS.RAW_TEXT);
+    localStorage.removeItem(STORAGE_KEYS.JOB_DESC);
+    setRawText('');
+    setJobDescription('');
+    setResumeData(null);
+    setCoverLetter('');
+    setShowSettingsModal(false);
+    window.location.reload(); // Cleanest way to reset all state for now
+  };
+
+  // --- Handlers ---
+
+  const handleResearchTrends = async () => {
+    if (!jobDescription) {
+        setError("Please enter a job description to research.");
+        return;
     }
+    setIsResearching(true);
+    try {
+        const trends = await researchIndustryTrends(jobDescription.substring(0, 100) + " Role"); // Infer title
+        setIndustryTrends(trends);
+    } catch (e) {
+        console.error(e);
+    } finally {
+        setIsResearching(false);
+    }
+  };
+
+  const handleGenerateHeadshot = async (size: '1K' | '2K' | '4K') => {
+    if (!resumeData?.suggestedHeadshotPrompt) {
+        setError("Generate a resume first to get a personalized headshot prompt.");
+        return;
+    }
+    setIsGeneratingHeadshot(true);
+    try {
+        const img = await generateHeadshot(resumeData.suggestedHeadshotPrompt, size);
+        setHeadshotImage(img);
+    } catch (e) {
+        setError("Failed to generate headshot. Try again.");
+    } finally {
+        setIsGeneratingHeadshot(false);
+    }
+  };
+
+  const handleRunAtsAudit = async () => {
+    if (!resumeData || !jobDescriptionUsedForLastResume) return;
+    setIsAuditingAts(true);
+    setAtsAuditResult(null);
+    try {
+        const result = await runAtsAudit(resumeData, jobDescriptionUsedForLastResume);
+        setAtsAuditResult(result);
+    } catch (e) {
+        setError("Failed to run ATS Audit.");
+    } finally {
+        setIsAuditingAts(false);
+    }
+  };
+
+  const handleGenerateResume = useCallback(async (suggestionContext?: { originalGap: string; aiSuggestion: string; }) => {
+    if (!rawText.trim()) return setError('Please input resume details.');
     setIsLoadingResume(true);
     setError(null);
-    setResumeData(null); 
-    setInterviewQuestions(null); // Reset interview questions on new resume
-    if (!suggestionContext) { // Only reset these if not applying a suggestion
-        setCoverLetter('');
+    if (!suggestionContext) {
+        setResumeData(null);
         setJobDescriptionUsedForLastResume(jobDescription);
+        setInterviewQuestions(null);
+        setAtsAuditResult(null); // Reset audit on new resume
+    }
+    
+    try {
+      const jd = suggestionContext ? jobDescriptionUsedForLastResume : jobDescription;
+      // Pass industry trends if available
+      const data = await generateResumeFromText(rawText, jd, suggestionContext, industryTrends || undefined);
+      setResumeData(data);
+      if (suggestionContext) {
         setSelectedGap(null);
         setGapSuggestion(null);
-        setGapSuggestionError(null);
-    }
-
-
-    try {
-      // Use the job description from the last "official" generation for suggestions, otherwise use the current one.
-      const jdForGeneration = suggestionContext ? jobDescriptionUsedForLastResume : jobDescription;
-      const data = await generateResumeFromText(rawText, jdForGeneration, suggestionContext); 
-      setResumeData(data);
-       if (suggestionContext) { // If a suggestion was applied, clear the gap UI
-        dismissGapSuggestion();
       }
+      setActiveTab('resume');
     } catch (err: any) {
-      console.error(err);
-      setError(err instanceof Error ? err.message : 'Failed to generate resume. Ensure your API key is configured.');
+      setError(err.message);
     } finally {
       setIsLoadingResume(false);
     }
-  }, [rawText, jobDescription, jobDescriptionUsedForLastResume]);
+  }, [rawText, jobDescription, jobDescriptionUsedForLastResume, industryTrends]);
 
   const handleGenerateCoverLetter = useCallback(async () => {
-    if (!resumeData) {
-      setError('Please generate a resume first.');
-      return;
-    }
-    if (!jobDescription.trim()) {
-      setError('Please provide a job description to generate a tailored cover letter.');
-      return;
-    }
+    if (!resumeData || !jobDescription) return setError('Resume and Job Description required.');
     setIsLoadingCoverLetter(true);
-    setError(null);
     setCoverLetter('');
+    setActiveTab('cover-letter');
     try {
       const stream = await generateCoverLetterStream(resumeData, jobDescription, coverLetterTone);
       for await (const chunk of stream) {
-        setCoverLetter((prev) => prev + chunk.text);
+        setCoverLetter(prev => prev + chunk.text);
       }
-    } catch (err: any) { 
-      console.error(err);
-      setError(err instanceof Error ? err.message : 'Failed to generate cover letter.');
+    } catch (err: any) {
+      setError(err.message);
     } finally {
       setIsLoadingCoverLetter(false);
     }
   }, [resumeData, jobDescription, coverLetterTone]);
-  
-  const handleGenerateInterviewQuestions = useCallback(async () => {
-    if (!resumeData || !jobDescriptionUsedForLastResume.trim()) {
-      setError('Please generate a resume with a job description first.');
-      return;
-    }
-    setIsLoadingInterviewQuestions(true);
-    setError(null);
-    setInterviewQuestions(null);
-    try {
-      const questions = await generateInterviewQuestions(resumeData, jobDescriptionUsedForLastResume);
-      setInterviewQuestions(questions);
-    } catch (err: any) {
-      console.error(err);
-      setError(err instanceof Error ? err.message : 'Failed to generate interview questions.');
-    } finally {
-      setIsLoadingInterviewQuestions(false);
-    }
-  }, [resumeData, jobDescriptionUsedForLastResume]);
 
-  const handleTryExample = useCallback(() => {
-    setRawText(SAMPLE_RAW_TEXT);
-    setJobDescription(SAMPLE_JOB_DESCRIPTION);
-  }, []);
-
-
-  const handleGapClick = async (gapText: string, index: number) => {
-    if (!resumeData || !jobDescriptionUsedForLastResume.trim()) return;
-
-    // If clicking the same gap again, toggle it off.
-    if (selectedGap && selectedGap.index === index) {
-        dismissGapSuggestion();
-        return;
-    }
-    
-    setSelectedGap({ text: gapText, index });
+  const handleGapAction = async (gap: string, idx: number) => {
+    if (selectedGap?.index === idx) return setSelectedGap(null);
+    setSelectedGap({ text: gap, index: idx });
     setIsLoadingGapSuggestion(true);
-    setGapSuggestion(null);
-    setGapSuggestionError(null);
-
+    setGapSuggestion(null); 
     try {
-      const suggestion = await getSuggestionForGap(resumeData, jobDescriptionUsedForLastResume, gapText);
+      const suggestion = await getSuggestionForGap(resumeData!, jobDescriptionUsedForLastResume, gap);
       setGapSuggestion(suggestion);
-    } catch (err: any) {
-      console.error(err);
-      setGapSuggestionError(err instanceof Error ? err.message : 'Failed to get suggestion.');
-    } finally {
-      setIsLoadingGapSuggestion(false);
-    }
-  };
-
-  const dismissGapSuggestion = () => {
-    setSelectedGap(null);
-    setGapSuggestion(null);
-    setGapSuggestionError(null);
+    } catch (e) { console.error(e); }
     setIsLoadingGapSuggestion(false);
   };
 
-  const handleApplySuggestion = useCallback(async () => {
-    if (!selectedGap || !gapSuggestion || !rawText.trim() || !jobDescriptionUsedForLastResume.trim()) {
-      setGapSuggestionError("Cannot apply suggestion: missing context or resume details.");
-      return;
-    }
-    setIsApplyingSuggestion(true); // Set flag to indicate this specific action
-    // Call handleGenerateResume with the suggestion context
+  const handleApplySuggestion = async () => {
+    if (!selectedGap || !gapSuggestion) return;
     await handleGenerateResume({ originalGap: selectedGap.text, aiSuggestion: gapSuggestion });
-  }, [selectedGap, gapSuggestion, rawText, jobDescriptionUsedForLastResume, handleGenerateResume]);
-
-
-  const showTailoringInsights = resumeData && 
-                                !isLoadingResume && 
-                                (jobDescriptionUsedForLastResume || jobDescription).trim().length > 0;
-
-  const strengthColorClasses: { [key in TailoringStrength]: string } = {
-    Excellent: 'text-green-600 bg-green-100',
-    Good: 'text-sky-600 bg-sky-100',
-    Fair: 'text-yellow-600 bg-yellow-100',
   };
-  
-  const scoreProgressColor = (score: number) => {
-    if (score >= 85) return 'bg-green-500';
-    if (score >= 70) return 'bg-sky-500';
-    if (score >= 50) return 'bg-yellow-500';
-    return 'bg-red-500';
-  };
+
+  // --- Render ---
 
   return (
-    <div className="bg-gray-100 min-h-screen font-sans">
-      <main className="max-w-screen-2xl mx-auto p-4 sm:p-6 lg:p-8">
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 items-start">
-          
-          {/* Left Column: Inputs & Controls */}
-          <div className="lg:col-span-2 space-y-6">
-            <div className="bg-slate-800 text-white p-6 rounded-lg shadow-2xl">
-              <div className="flex items-center mb-4">
-                <h2 className="text-2xl font-bold font-display text-sky-300">AI Resume Artisan</h2>
-              </div>
-              <ResumeInput
-                rawText={rawText}
-                onRawTextChange={setRawText}
-                jobDescription={jobDescription}
-                onJobDescriptionChange={setJobDescription}
-                onGenerateResume={handleGenerateResume}
-                onGenerateCoverLetter={handleGenerateCoverLetter}
-                isGeneratingResume={isLoadingResume}
-                isGeneratingCoverLetter={isLoadingCoverLetter}
-                resumeGenerated={!!resumeData}
-                selectedTemplate={selectedTemplate}
-                onTemplateChange={setSelectedTemplate}
-                selectedFontGroup={selectedFontGroup}
-                onFontGroupChange={setSelectedFontGroup}
-                onTryExample={handleTryExample}
-                coverLetterTone={coverLetterTone}
-                onCoverLetterToneChange={setCoverLetterTone}
-                onGenerateInterviewQuestions={handleGenerateInterviewQuestions}
-                isGeneratingInterviewQuestions={isLoadingInterviewQuestions}
-              />
+    <div className="flex h-screen w-full bg-obsidian text-platinum overflow-hidden font-sans selection:bg-accent selection:text-white">
+      
+      {/* 1. Sidebar (Executive Rail) */}
+      <nav className="w-20 lg:w-24 bg-charcoal border-r border-glass-border flex flex-col items-center py-8 z-20 flex-shrink-0 shadow-glass-xl">
+        <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-accent to-amber-600 flex items-center justify-center shadow-platinum mb-12">
+          <SparklesIcon className="text-white w-7 h-7" />
+        </div>
+        
+        <div className="space-y-6 w-full flex flex-col items-center">
+          <NavButton 
+            active={activeTab === 'resume'} 
+            onClick={() => setActiveTab('resume')} 
+            icon={<BriefcaseIcon />} 
+            label="Resume" 
+          />
+          <NavButton 
+            active={activeTab === 'cover-letter'} 
+            onClick={() => setActiveTab('cover-letter')} 
+            icon={<DocumentMagnifyingGlassIcon />} 
+            label="Letter" 
+            disabled={!resumeData}
+          />
+          <NavButton 
+            active={activeTab === 'analysis'} 
+            onClick={() => setActiveTab('analysis')} 
+            icon={<UserGroupIcon />} 
+            label="Insights" 
+            disabled={!resumeData?.jobMatchAnalysis}
+          />
+        </div>
+
+        <div className="mt-auto">
+            <button 
+                onClick={() => setShowSettingsModal(true)}
+                className="p-3 text-slate-500 hover:text-white transition-colors"
+            >
+                <CogIcon className="w-6 h-6" />
+            </button>
+        </div>
+      </nav>
+
+      {/* 2. Main Workspace */}
+      <main className="flex-1 flex flex-col lg:flex-row relative overflow-hidden bg-executive-gradient">
+        
+        {/* Left Panel: Strategy Deck */}
+        <section className="w-full lg:w-[450px] xl:w-[500px] h-full overflow-y-auto custom-scrollbar bg-surface/50 backdrop-blur-md border-r border-glass-border flex flex-col z-10 relative">
+          <div className="p-6 lg:p-8">
+            <div className="mb-8 flex justify-between items-start">
+                <div>
+                    <h1 className="text-3xl font-bold font-serif text-white tracking-tight mb-1">Artisan<span className="text-accent">.</span></h1>
+                    <p className="text-xs text-subtle uppercase tracking-[0.2em] font-medium flex items-center gap-2">
+                        Enterprise Suite <span className="w-1 h-1 bg-accent rounded-full"></span> Gemini 3 Pro
+                    </p>
+                </div>
+                {lastSaved && (
+                     <div className="flex items-center text-[10px] text-slate-500 opacity-60">
+                        <CheckIcon className="w-3 h-3 mr-1" /> Auto-saved
+                     </div>
+                )}
             </div>
 
             {error && (
-              <div className="bg-red-200/90 border border-red-500 text-red-800 px-4 py-3 rounded-lg relative shadow-md" role="alert">
-                <strong className="font-bold">An error occurred: </strong>
-                <span className="block sm:inline">{error}</span>
+              <div className="mb-6 p-4 bg-red-900/10 border-l-2 border-red-500 rounded-r-lg text-red-200 text-sm flex items-start animate-fade-in-up">
+                <XMarkIcon className="w-5 h-5 mr-3 mt-0.5 flex-shrink-0 text-red-500" />
+                {error}
               </div>
             )}
-            
-            {/* AI Analysis Sections Wrapper for better visual hierarchy */}
-            <div className="space-y-6 border-t border-gray-200 pt-6">
-              {showTailoringInsights && resumeData && (
-                <div className="space-y-6 animate-fade-in-up">
-                  {/* AI Tailoring Insights */}
-                  {(resumeData.tailoringStrength || resumeData.tailoringKeywords) && (
-                      <div className="bg-white p-6 rounded-lg shadow-md text-gray-800">
-                          <h3 className="text-xl font-bold text-gray-800 mb-4">AI Tailoring Insights</h3>
-                          {resumeData.tailoringStrength && (
-                              <div className="mb-4">
-                                  <h4 className="font-semibold text-gray-700 mb-1">Overall Tailoring Fit</h4>
-                                  <span className={`px-2.5 py-1 text-sm font-semibold rounded-full ${strengthColorClasses[resumeData.tailoringStrength] || 'text-gray-600 bg-gray-100'}`}>{resumeData.tailoringStrength}</span>
-                              </div>
-                          )}
-                          {resumeData.tailoringKeywords && resumeData.tailoringKeywords.length > 0 && (
-                              <div>
-                                  <h4 className="font-semibold text-gray-700 mb-2">Prioritized Key Terms</h4>
-                                  <div className="flex flex-wrap gap-1.5">
-                                      {resumeData.tailoringKeywords.map(keyword => (
-                                          <span key={keyword} className="bg-sky-100 text-sky-800 text-xs font-medium px-2 py-0.5 rounded-full">{keyword}</span>
-                                      ))}
-                                  </div>
-                              </div>
-                          )}
-                      </div>
-                  )}
-                  {/* Job Match Analysis */}
-                  {resumeData.jobMatchAnalysis && (
-                      <div className="bg-white p-6 rounded-lg shadow-md text-gray-800">
-                          <h3 className="text-xl font-bold text-gray-800 mb-4">Job Match Analysis</h3>
-                          
-                          {resumeData.jobMatchAnalysis.matchScore !== undefined && (
-                            <div className="mb-4">
-                              <div className="flex justify-between items-baseline mb-1">
-                                  <h4 className="font-semibold text-gray-700">Job Alignment Score</h4>
-                                  <span className={`text-lg font-bold ${scoreProgressColor(resumeData.jobMatchAnalysis.matchScore).replace('bg-', 'text-')}`}>{resumeData.jobMatchAnalysis.matchScore}%</span>
-                              </div>
-                              <div className="w-full bg-gray-200 rounded-full h-2.5">
-                                  <div className={`${scoreProgressColor(resumeData.jobMatchAnalysis.matchScore)} h-2.5 rounded-full`} style={{width: `${resumeData.jobMatchAnalysis.matchScore}%`}}></div>
-                              </div>
-                            </div>
-                          )}
-                          
-                          {resumeData.jobMatchAnalysis.strengths && resumeData.jobMatchAnalysis.strengths.length > 0 && (
-                              <div className="mb-4">
-                                  <h4 className="font-semibold text-gray-700 mb-2">Alignment Strengths</h4>
-                                  <ul className="space-y-1.5">
-                                  {resumeData.jobMatchAnalysis.strengths.map((strength, index) => (
-                                      <li key={index} className="flex items-start text-sm text-gray-600"><CheckBadgeIcon className="w-5 h-5 text-green-500 mr-2 flex-shrink-0 mt-0.5"/> {strength}</li>
-                                  ))}
-                                  </ul>
-                              </div>
-                          )}
 
-                          {resumeData.jobMatchAnalysis.gaps && resumeData.jobMatchAnalysis.gaps.length > 0 && (
-                            <div className="mt-4">
-                              <h4 className="font-semibold text-gray-700 mb-2">Potential Gaps / Improvements</h4>
-                              <ul className="space-y-2">
-                                {resumeData.jobMatchAnalysis.gaps.map((gap, index) => (
-                                  <li key={index} className="bg-gray-50 border border-gray-200 rounded-lg transition-shadow hover:shadow-md">
-                                    <div className="p-3 flex justify-between items-start">
-                                      <p className="text-gray-700 pr-4">{gap}</p>
-                                      <button
-                                        onClick={() => handleGapClick(gap, index)}
-                                        title="Get AI Suggestion"
-                                        aria-label={`Get AI suggestion for gap: ${gap}`}
-                                        className={`flex-shrink-0 p-1.5 rounded-full transition-colors ${selectedGap?.index === index ? 'bg-sky-600 text-white' : 'bg-gray-200 hover:bg-sky-500 hover:text-white text-sky-800'}`}
-                                      >
-                                        <LightBulbIcon className="w-5 h-5" />
-                                      </button>
-                                    </div>
-
-                                    {/* INLINE SUGGESTION BOX */}
-                                    {selectedGap?.index === index && (
-                                      <div className="border-t border-gray-200 p-4 bg-gray-50/50 rounded-b-lg">
-                                        {isLoadingGapSuggestion ? (
-                                          <div className="flex items-center text-sky-600">
-                                              <LoadingSpinner size="h-5 w-5 mr-3" color="text-sky-600" />
-                                              <span>Finding the best suggestion...</span>
-                                          </div>
-                                        ) : gapSuggestionError ? (
-                                          <div className="text-red-700 bg-red-100 p-3 rounded-md">
-                                              <div className="flex justify-between items-center mb-1">
-                                                  <p className="font-semibold">Error</p>
-                                                  <button onClick={dismissGapSuggestion} className="p-1 rounded-full hover:bg-red-200"><XMarkIcon className="w-4 h-4" /></button>
-                                              </div>
-                                              <p>{gapSuggestionError}</p>
-                                          </div>
-                                        ) : gapSuggestion ? (
-                                          <div className="space-y-3">
-                                              <p className="text-gray-800 font-semibold">AI Suggestion:</p>
-                                              <blockquote className="bg-gray-100 p-3 rounded-md border-l-4 border-sky-500 text-gray-700 italic">
-                                                  {gapSuggestion}
-                                              </blockquote>
-                                              <div className="flex space-x-3 pt-2">
-                                                  <button
-                                                    onClick={handleApplySuggestion}
-                                                    disabled={isLoadingResume}
-                                                    className="px-4 py-2 text-sm font-medium rounded-md text-white bg-sky-600 hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500 transition-colors flex items-center justify-center disabled:bg-sky-400 disabled:cursor-not-allowed"
-                                                  >
-                                                    {isLoadingResume && isApplyingSuggestion ? <LoadingSpinner size="h-5 w-5 mr-2" /> : null}
-                                                    {isLoadingResume && isApplyingSuggestion ? 'Applying...' : 'Apply Suggestion'}
-                                                  </button>
-                                                  <button
-                                                      onClick={dismissGapSuggestion}
-                                                      className="px-4 py-2 text-sm font-medium rounded-md text-gray-700 bg-gray-200 hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-colors"
-                                                  >
-                                                      Dismiss
-                                                  </button>
-                                              </div>
-                                          </div>
-                                        ) : null}
-                                      </div>
-                                    )}
-                                  </li>
-                                ))}
-                              </ul>
-                            </div>
-                          )}
-                      </div>
-                  )}
-                </div>
-              )}
-              {isLoadingInterviewQuestions && (
-                <div className="bg-white p-6 rounded-lg shadow-md text-gray-800 flex items-center justify-center">
-                    <LoadingSpinner color="text-sky-500" />
-                    <span className="ml-3 text-gray-600">Generating interview questions...</span>
-                </div>
-              )}
-              {interviewQuestions && !isLoadingInterviewQuestions && (
-                  <div className="bg-white p-6 rounded-lg shadow-md text-gray-800 animate-fade-in-up">
-                      <h3 className="text-xl font-bold text-gray-800 mb-4">AI-Generated Interview Questions</h3>
-                      <ul className="space-y-3">
-                          {interviewQuestions.map((question, index) => (
-                              <li key={index} className="flex items-start p-3 bg-gray-50 rounded-md border-l-4 border-sky-500">
-                                  <span className="font-semibold text-sky-700 mr-2">{index + 1}.</span>
-                                  <p className="text-gray-700">{question}</p>
-                              </li>
-                          ))}
-                      </ul>
-                  </div>
-              )}
+            {/* Resume Input Context */}
+            <div className={`${activeTab !== 'resume' ? 'hidden' : 'block'} animate-fade-in-up`}>
+                <ResumeInput 
+                    rawText={rawText}
+                    onRawTextChange={setRawText}
+                    jobDescription={jobDescription}
+                    onJobDescriptionChange={setJobDescription}
+                    onGenerateResume={() => handleGenerateResume()}
+                    onGenerateCoverLetter={handleGenerateCoverLetter}
+                    isGeneratingResume={isLoadingResume}
+                    isGeneratingCoverLetter={isLoadingCoverLetter}
+                    resumeGenerated={!!resumeData}
+                    selectedTemplate={selectedTemplate}
+                    onTemplateChange={setSelectedTemplate}
+                    selectedFontGroup={selectedFontGroup}
+                    onFontGroupChange={setSelectedFontGroup}
+                    onTryExample={() => { setRawText(SAMPLE_RAW_TEXT); setJobDescription(SAMPLE_JOB_DESCRIPTION); }}
+                    coverLetterTone={coverLetterTone}
+                    onCoverLetterToneChange={setCoverLetterTone}
+                    onGenerateInterviewQuestions={() => {}} 
+                    isGeneratingInterviewQuestions={false}
+                    settings={layoutSettings}
+                    onSettingsChange={setLayoutSettings}
+                    // New Props
+                    onGenerateHeadshot={handleGenerateHeadshot}
+                    isGeneratingHeadshot={isGeneratingHeadshot}
+                    onResearchTrends={handleResearchTrends}
+                    isResearching={isResearching}
+                    industryTrends={industryTrends}
+                />
             </div>
-          </div>
+            
+            {/* Analysis Panel */}
+            {activeTab === 'analysis' && resumeData && (
+                <div className="space-y-8 animate-fade-in-up">
+                    
+                    {/* Job Match Analysis */}
+                    <div className="bg-glass border border-glass-border p-6 rounded-xl shadow-lg relative overflow-hidden">
+                        <div className="absolute top-0 right-0 p-3 opacity-10">
+                            <SparklesIcon className="w-24 h-24 text-accent" />
+                        </div>
+                        <h3 className="text-white font-bold mb-6 flex items-center font-serif text-xl"><SparklesIcon className="w-5 h-5 mr-3 text-accent"/> Strategic Alignment</h3>
+                        
+                        <div className="flex items-end gap-3 mb-3">
+                             <span className="text-5xl font-bold text-white tracking-tighter">{resumeData.jobMatchAnalysis?.matchScore || 0}%</span>
+                             <span className="text-subtle mb-1.5 uppercase text-xs tracking-wider">Match Score</span>
+                        </div>
+                        <div className="w-full bg-charcoal h-1 rounded-full mb-8 overflow-hidden">
+                            <div className="bg-accent h-full transition-all duration-1000 ease-out shadow-[0_0_10px_rgba(245,158,11,0.5)]" style={{width: `${resumeData.jobMatchAnalysis?.matchScore}%`}}></div>
+                        </div>
 
-          {/* Right Column: Previews */}
-          <div className="lg:col-span-3 space-y-8">
-            {isLoadingResume && (
-              <div className="flex justify-center items-center p-10 bg-white rounded-lg shadow-md min-h-[500px]">
-                <div className="text-center">
-                    <LoadingSpinner color="text-sky-500" />
-                    <p className="mt-2 text-gray-600">Crafting your resume...</p>
-                </div>
-              </div>
-            )}
-            {resumeData && !isLoadingResume && (
-              <div className="lg:sticky lg:top-8" ref={resumePreviewRef}>
-                <ResumePreview data={resumeData} template={selectedTemplate} fontGroup={selectedFontGroup} />
-              </div>
-            )}
-            {isLoadingCoverLetter && (
-              <div className="flex justify-center items-center p-10 bg-white rounded-lg shadow-md min-h-[400px]">
-                 <div className="text-center">
-                    <LoadingSpinner color="text-sky-500" />
-                    <p className="mt-2 text-gray-600">Writing your cover letter...</p>
-                </div>
-              </div>
-            )}
-            {coverLetter && !isLoadingCoverLetter && (
-              <CoverLetterPreview letter={coverLetter} resumeData={resumeData} />
-            )}
-             {!resumeData && !isLoadingResume && (
-                <div className="bg-white text-left p-8 rounded-lg shadow-md border-2 border-dashed border-gray-300 min-h-[500px] flex flex-col justify-center">
-                    <h3 className="text-2xl font-bold text-gray-700 mb-4 text-center">Welcome to AI Resume Artisan!</h3>
-                    <p className="text-gray-500 mb-6 text-center">Your generated resume will appear here once you provide your details.</p>
-                    <div className="bg-gray-50 p-6 rounded-lg border border-gray-200">
-                        <h4 className="font-semibold text-gray-800 mb-3">Quick Start Guide:</h4>
-                        <ol className="list-decimal list-inside space-y-2 text-gray-600">
-                            <li>Paste your resume details in the input field on the left.</li>
-                            <li>(Recommended) Add a job description to tailor your resume for a specific role.</li>
-                            <li>Click "Generate Resume" to see the magic happen!</li>
-                            <li>For a ready-made example, just click the "Try with an Example" button above.</li>
-                        </ol>
+                        <div className="space-y-4">
+                            {resumeData.jobMatchAnalysis?.gaps?.map((gap, i) => (
+                                <div key={i} className="bg-charcoal/40 p-4 rounded-lg border-l-2 border-red-500/50 hover:border-red-500 transition-colors group">
+                                    <div className="flex justify-between items-start mb-2">
+                                        <p className="text-sm text-platinum leading-relaxed pr-2">{gap}</p>
+                                        <button onClick={() => handleGapAction(gap, i)} className="text-subtle hover:text-accent transition-colors">
+                                            <LightBulbIcon className={`w-5 h-5 transition-all duration-300 ${selectedGap?.index === i ? 'text-accent drop-shadow-[0_0_8px_rgba(245,158,11,0.5)]' : ''}`}/>
+                                        </button>
+                                    </div>
+                                    {selectedGap?.index === i && (
+                                        <div className="mt-4 animate-fade-in-up pl-4 border-l border-white/10">
+                                            {isLoadingGapSuggestion ? (
+                                                <div className="flex items-center py-2">
+                                                    <LoadingSpinner size="h-4 w-4" color="text-accent" />
+                                                    <span className="ml-3 text-xs text-subtle">Gemini analyzing strategy...</span>
+                                                </div>
+                                            ) : gapSuggestion ? (
+                                                <div className="bg-surface border border-white/5 rounded-lg p-4 shadow-xl">
+                                                    <h4 className="text-[10px] font-bold text-accent uppercase tracking-widest mb-2 flex items-center">
+                                                        <SparklesIcon className="w-3 h-3 mr-2" /> Strategic Fix
+                                                    </h4>
+                                                    <p className="text-sm text-platinum italic mb-4 leading-relaxed">
+                                                        "{gapSuggestion}"
+                                                    </p>
+                                                    <div className="flex gap-2">
+                                                        <button 
+                                                            onClick={handleApplySuggestion} 
+                                                            className="flex-1 bg-green-600/90 hover:bg-green-500 text-white text-xs font-bold py-2 px-3 rounded shadow-lg transition-all"
+                                                        >
+                                                            Apply Fix
+                                                        </button>
+                                                        <button 
+                                                            onClick={() => { setGapSuggestion(null); setSelectedGap(null); }} 
+                                                            className="px-3 py-2 bg-white/5 hover:bg-white/10 text-subtle text-xs font-bold rounded transition-colors"
+                                                        >
+                                                            Dismiss
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            ) : null}
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* ATS Audit Panel */}
+                    <div className="bg-glass border border-glass-border p-6 rounded-xl shadow-lg relative overflow-hidden">
+                        <h3 className="text-white font-bold mb-4 flex items-center font-serif text-xl">
+                            <CpuChipIcon className="w-5 h-5 mr-3 text-sky-400"/> Technical ATS Audit
+                        </h3>
+                        {!atsAuditResult ? (
+                             <div className="text-center py-6">
+                                <p className="text-sm text-subtle mb-4">Run a simulation against a corporate-grade parser (Taleo/Greenhouse).</p>
+                                <button 
+                                    onClick={handleRunAtsAudit}
+                                    disabled={isAuditingAts}
+                                    className="bg-white/10 hover:bg-white/20 text-white font-bold py-2 px-6 rounded-full text-xs uppercase tracking-wider transition-all flex items-center mx-auto"
+                                >
+                                    {isAuditingAts ? <LoadingSpinner size="h-3 w-3" color="text-white"/> : <CpuChipIcon className="w-4 h-4 mr-2"/>}
+                                    {isAuditingAts ? 'Parsing...' : 'Run Simulation'}
+                                </button>
+                             </div>
+                        ) : (
+                             <div className="animate-fade-in-up">
+                                <div className="grid grid-cols-2 gap-4 mb-6">
+                                    <div className="bg-charcoal/50 p-4 rounded-lg text-center border border-white/5">
+                                        <div className="text-3xl font-bold text-sky-400">{atsAuditResult.parseabilityScore}/100</div>
+                                        <div className="text-[10px] text-subtle uppercase tracking-wider">Parseability</div>
+                                    </div>
+                                    <div className="bg-charcoal/50 p-4 rounded-lg text-center border border-white/5">
+                                        <div className={`text-lg font-bold ${atsAuditResult.estimatedHumanReviewStatus === 'Auto-Reject' ? 'text-red-400' : 'text-green-400'}`}>
+                                            {atsAuditResult.estimatedHumanReviewStatus}
+                                        </div>
+                                        <div className="text-[10px] text-subtle uppercase tracking-wider">Status</div>
+                                    </div>
+                                </div>
+                                {atsAuditResult.formattingIssues.length > 0 && (
+                                    <div className="mb-4">
+                                        <h4 className="text-[10px] font-bold text-red-400 uppercase tracking-widest mb-2 flex items-center">
+                                            <ExclamationTriangleIcon className="w-3 h-3 mr-1"/> Formatting Flags
+                                        </h4>
+                                        <ul className="list-disc ml-4 text-xs text-platinum space-y-1">
+                                            {atsAuditResult.formattingIssues.map((issue, i) => <li key={i}>{issue}</li>)}
+                                        </ul>
+                                    </div>
+                                )}
+                                {atsAuditResult.missingCriticalKeywords.length > 0 && (
+                                    <div>
+                                        <h4 className="text-[10px] font-bold text-amber-400 uppercase tracking-widest mb-2">Missing Keywords</h4>
+                                        <div className="flex flex-wrap gap-2">
+                                            {atsAuditResult.missingCriticalKeywords.map((kw, i) => (
+                                                <span key={i} className="bg-amber-900/30 text-amber-200 border border-amber-500/30 px-2 py-1 rounded text-[10px]">
+                                                    {kw}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                                <div className="mt-4 text-center">
+                                    <button onClick={() => setAtsAuditResult(null)} className="text-xs text-subtle hover:text-white underline">Reset Audit</button>
+                                </div>
+                             </div>
+                        )}
                     </div>
                 </div>
-             )}
+            )}
+            
+            {/* Cover Letter Context */}
+            {activeTab === 'cover-letter' && (
+                <div className="space-y-6 animate-fade-in-up text-center pt-20">
+                    <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-4 border border-white/10">
+                         <DocumentMagnifyingGlassIcon className="w-8 h-8 text-accent opacity-50"/>
+                    </div>
+                    <p className="text-subtle max-w-xs mx-auto text-sm leading-relaxed">Gemini will draft a cover letter aligning your resume's strongest points with the job description.</p>
+                    <div className="flex justify-center">
+                        <button onClick={handleGenerateCoverLetter} disabled={isLoadingCoverLetter} className="bg-white text-obsidian hover:bg-platinum font-bold py-3 px-8 rounded shadow-xl transition-all hover:scale-105 disabled:opacity-50">
+                            {isLoadingCoverLetter ? 'Drafting...' : 'Regenerate Letter'}
+                        </button>
+                    </div>
+                </div>
+            )}
+
           </div>
-        </div>
+        </section>
+
+        {/* Right Panel: Live Canvas */}
+        <section className="flex-1 relative overflow-hidden flex flex-col items-center justify-center p-4 lg:p-10 perspective-stage bg-[#05080F]">
+           
+           {/* Cinematic Ambient Glow */}
+           <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-accent/5 rounded-full blur-[120px] pointer-events-none"></div>
+           <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-900/10 rounded-full blur-[100px] pointer-events-none"></div>
+
+           {/* Content Container */}
+           <div 
+             ref={previewRef}
+             className={`
+               relative w-full transition-all duration-1000 ease-[cubic-bezier(0.23,1,0.32,1)] preserve-3d
+               ${!isLoadingResume && resumeData ? 'opacity-100 translate-y-0 rotate-x-0' : 'opacity-40 translate-y-10 rotate-x-6'}
+             `}
+             style={{ maxWidth: '850px' }} 
+           >
+             {isLoadingResume || isLoadingCoverLetter ? (
+                 <div className="absolute inset-0 flex items-center justify-center z-50">
+                    <div className="bg-charcoal/80 backdrop-blur-2xl border border-white/10 p-10 rounded-2xl shadow-2xl flex flex-col items-center border-t border-white/20">
+                        <LoadingSpinner size="w-10 h-10" color="text-accent" />
+                        <p className="mt-6 text-platinum font-mono text-xs uppercase tracking-[0.3em] animate-pulse">
+                            {isLoadingResume ? 'Gemini 3 Pro Reasoning...' : 'Composing...'}
+                        </p>
+                    </div>
+                 </div>
+             ) : null}
+
+             <div className={`
+                 transition-transform duration-700 shadow-3d-float
+                 ${activeTab === 'resume' ? 'hover:rotate-x-1 hover:rotate-y-1' : ''} 
+             `}>
+                {activeTab === 'resume' && resumeData && (
+                    <ResumePreview 
+                      data={resumeData} 
+                      template={selectedTemplate} 
+                      fontGroup={selectedFontGroup} 
+                      settings={layoutSettings}
+                      headshotImage={headshotImage}
+                    />
+                )}
+                {activeTab === 'cover-letter' && coverLetter && (
+                    <CoverLetterPreview letter={coverLetter} resumeData={resumeData} />
+                )}
+                
+                {/* Empty State */}
+                {!resumeData && !isLoadingResume && (
+                    <div className="bg-charcoal/40 backdrop-blur-sm border border-white/5 rounded-xl p-12 text-center h-[600px] flex flex-col items-center justify-center dashed-border opacity-50">
+                        <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mb-6">
+                            <BriefcaseIcon className="w-8 h-8 text-subtle" />
+                        </div>
+                        <h2 className="text-2xl font-serif text-white mb-2">Executive Studio</h2>
+                        <p className="text-subtle text-sm max-w-md mx-auto">
+                            Awaiting strategy input. Use the panel on the left to initialize Gemini.
+                        </p>
+                    </div>
+                )}
+             </div>
+           </div>
+        </section>
+
       </main>
+
+      {showSettingsModal && (
+        <SettingsModal 
+            onClose={() => setShowSettingsModal(false)}
+            onClearData={handleClearData}
+        />
+      )}
+
     </div>
   );
 };
+
+const NavButton = ({ active, onClick, icon, label, disabled = false }: any) => (
+  <button 
+    onClick={onClick}
+    disabled={disabled}
+    className={`
+      group relative flex items-center justify-center w-12 h-12 rounded-xl transition-all duration-300
+      ${active ? 'bg-white text-obsidian shadow-[0_0_15px_rgba(255,255,255,0.2)]' : 'text-slate-500 hover:text-white hover:bg-white/5'}
+      ${disabled ? 'opacity-20 cursor-not-allowed' : 'cursor-pointer'}
+    `}
+  >
+    <div className="w-5 h-5">{icon}</div>
+    <span className="absolute left-16 bg-surface text-platinum text-[10px] uppercase tracking-wider font-bold px-3 py-1.5 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap border border-white/10 shadow-xl">
+      {label}
+    </span>
+    {active && <div className="absolute -left-4 w-1 h-6 bg-accent rounded-r-full shadow-[0_0_10px_#F59E0B]" />}
+  </button>
+);
 
 export default App;
