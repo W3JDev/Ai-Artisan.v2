@@ -1,69 +1,78 @@
+
 # AI Resume Artisan™ | Enterprise-Grade Career Architect
 
-![Status](https://img.shields.io/badge/Status-Production_Ready-success?style=for-the-badge)
-![AI Model](https://img.shields.io/badge/AI_Core-Gemini_3_Pro-blueviolet?style=for-the-badge)
-![Tech Stack](https://img.shields.io/badge/Tech-React_19_%7C_TypeScript-blue?style=for-the-badge)
-![License](https://img.shields.io/badge/License-MIT-lightgrey?style=for-the-badge)
+![AI Core](https://img.shields.io/badge/AI_Intelligence-Gemini_3_Pro-7c3aed?style=for-the-badge&logo=google)
+![Visual Engine](https://img.shields.io/badge/Visual_Identity-Gemini_3_Pro_Image-f59e0b?style=for-the-badge&logo=googlelens)
+![Tech Stack](https://img.shields.io/badge/Frontend-React_19_|_TypeScript-3b82f6?style=for-the-badge&logo=react)
+![License](https://img.shields.io/badge/License-MIT-94a3b8?style=for-the-badge)
 
-> **Architect your career narrative with the precision of AI.**
+> **"Not just a resume builder. A cognitive career strategist."**
 >
-> *AI Resume Artisan* is not just a resume builder. It is an intelligent career strategist that leverages **Google's Gemini 3.0 Pro** and **2.5 Flash** models to deconstruct your professional history, analyze target job descriptions, and engineer high-converting, ATS-optimized application materials.
+> **AI Resume Artisan** leverages the cutting-edge reasoning of **Google's Gemini 3.0 Pro** to deconstruct your professional history, analyze target job descriptions with semantic precision, and engineer high-converting application materials. It bridges the gap between human potential and algorithmic hiring.
 
 ---
 
-## 🚀 Why AI Resume Artisan?
+## 🧠 Pro Skill Expertise: The Cognitive Engine
 
-In an era of algorithmic hiring, generic resumes are invisible. **AI Resume Artisan** bridges the gap between human potential and machine parsing.
+Unlike standard template fillers, AI Resume Artisan utilizes a **Multi-Model Orchestration Layer** to act as an elite career coach.
 
-### 🌟 Unique Value Proposition (UVP)
-*   **🧠 Cognitive Reasoning:** Unlike template fillers, our AI *understands* the nuance of your career using Gemini's "Thinking Mode", ensuring every bullet point lands with impact.
-*   **🎯 Semantic Tailoring:** We don't just keyword stuff. The engine performs deep semantic analysis of job descriptions to align your profile with the core competencies employers seek.
-*   **🔄 Iterative Strategy Loop:** Identified a gap? Our **AI Gap Analysis** doesn't just flag it—it suggests the exact verbiage to bridge it, allowing you to iterate your way to a 100% Match Score.
-*   **📸 Nano Banana Pro Headshots:** Generates professional-grade, AI-synthesized executive headshots using `gemini-3-pro-image-preview` to complete your personal brand.
-*   **🌐 Real-Time Grounding:** utilizes Google Search Grounding to inject real-time industry trends and keywords into your profile, ensuring you look cutting-edge.
+### 1. Deep Semantic Reasoning (`gemini-3-pro-preview`)
+The system doesn't just match keywords; it understands *context*.
+*   **Executive Translation:** Converts "Managed a team" into "Orchestrated cross-functional operations driving 40% efficiency gains," aligning the tone with the seniority of the target role.
+*   **Gap Analysis & Strategic Fixes:** Identifies specific missing hard/soft skills compared to the JD and *suggests the exact bullet point* to bridge that gap truthfully.
+*   **Thinking Mode:** Utilizes extended token budgets to reason through complex career pivots and transferable skills.
+
+### 2. Live Market Grounding (`gemini-2.5-flash` + Search)
+*   **Real-Time Trends:** Injects 2025-relevant industry keywords by actively searching current market data, ensuring your resume never looks outdated.
+*   **Tailoring Strength Score:** Provides a quantifiable 0-100% match score against your target Job Description.
+
+---
+
+## 🎨 Visual Excellence: Gemini 3 Pro Vision
+
+We integrate the most advanced generative media models to build a complete personal brand.
+
+### 📸 Nano Banana Pro Headshots
+**Powered by `gemini-3-pro-image-preview`**
+*   **AI-Synthesized Photography:** Generates hyper-realistic, studio-quality executive headshots based on your resume's persona.
+*   **Adaptive Styling:** Creates images that match your target industry (e.g., "Corporate Law" vs. "Creative Director").
+*   **High Definition:** Supports up to 2K/4K resolution for crisp professional profiles.
+
+### 🎥 Veo Motion Identity
+**Powered by `veo-3.1-fast-generate-preview`**
+*   **Cinematic Brand Intros:** Generates 1080p video intros for your digital portfolio or LinkedIn featured section.
+*   **Context-Aware Visuals:** The video content is derived from your core professional themes.
 
 ---
 
 ## ⚡ Core Features
 
-### 1. The Executive Strategy Deck
-*   **Context-Aware Generation:** Ingests raw notes, LinkedIn exports, or old CVs.
-*   **Smart Auto-Save:** Local-first persistence ensures your draft is never lost.
-*   **Settings & Privacy:** robust data management to clear or reset your career profile.
+### The Executive Strategy Deck
+*   **Smart Scan (OCR):** Upload PDF, DOCX, or images of old resumes. The AI optically recognizes and structures the data.
+*   **Local-First Persistence:** Your data lives in your browser. Enterprise-grade privacy with no backend database storage of PII.
+*   **Context-Aware Drafting:** Cover letters are generated not as generic templates, but as narrative arguments for your candidacy.
 
-### 2. Deep Match Analysis
-*   **Quantifiable Scoring:** Real-time **0-100% Job Match Score**.
-*   **Gap Detection:** Identifies missing hard/soft skills.
-*   **Strategic Fixes:** One-click AI suggestions to rewrite sections and close qualification gaps.
-
-### 3. Visual Identity Suite
-*   **Enterprise Layouts:** Choose between 'Executive Gold' (Serif/Classic) and 'Modern Tech' (Sans/Clean) templates.
-*   **Dynamic Typography:** Real-time font switching (Inter, Merriweather, JetBrains Mono).
-*   **PDF Export Engine:** High-fidelity, vector-quality PDF generation (`jspdf` + `html2canvas`) with custom filename control.
+### The Visual Identity Suite
+*   **Dynamic Templating:** Switch instantly between 'Executive Gold' (Serif), 'Silicon Valley' (Minimal Sans), and 'Swiss Grid' layouts.
+*   **Vector PDF Export:** Generates print-ready, selectable text PDFs optimized for ATS parsing (`html2canvas` + `jspdf`).
 
 ---
 
 ## 🛠️ Technical Architecture
 
-Built on a modern, performance-obsessed stack designed for scalability and developer experience.
+Built on a performance-obsessed stack designed for the modern web.
 
-*   **Frontend Framework:** **React 19** (Leveraging concurrent features).
-*   **Language:** **TypeScript** (Strict mode for enterprise reliability).
-*   **Styling:** **Tailwind CSS** (Utility-first, responsive, dark-mode native).
-*   **AI Orchestration:**
-    *   **Logic:** `@google/genai` SDK v1.4.0.
-    *   **Models:**
-        *   `gemini-3-pro-preview`: Complex reasoning, resume structuring, gap analysis.
-        *   `gemini-2.5-flash`: High-speed drafting (Cover Letters), real-time suggestions.
-        *   `gemini-3-pro-image-preview`: Visual asset generation.
-*   **Client-Side Processing:** No backend database required. All state is local or transient.
+*   **Frontend:** React 19 (Concurrent Mode), TypeScript 5.x.
+*   **Styling:** Tailwind CSS with a custom "Obsidian & Gold" executive theme.
+*   **AI SDK:** `@google/genai` v1.4.0.
+*   **State Management:** LocalStorage with complex JSON serialization for version history.
 
 ---
 
 ## 🚀 Quick Start
 
 **Prerequisites:**
-You must have a Google Cloud Project with the Gemini API enabled and a valid API Key.
+A Google Cloud Project with the Gemini API enabled (Paid tier required for Veo/Gemini 3 Pro features).
 
 1.  **Clone the Repository**
     ```bash
@@ -72,8 +81,8 @@ You must have a Google Cloud Project with the Gemini API enabled and a valid API
     ```
 
 2.  **Environment Setup**
-    *   The application requires an API Key.
-    *   *Note: This project is configured to read `process.env.API_KEY`. Ensure your build environment injects this variable.*
+    *   Create a `.env` file or export your key:
+    *   `export API_KEY="your_gemini_api_key"`
 
 3.  **Install & Run**
     ```bash
@@ -85,15 +94,8 @@ You must have a Google Cloud Project with the Gemini API enabled and a valid API
 
 ## 🔒 Privacy & Security
 
-*   **Local-First Design:** Your raw resume data is stored in your browser's `localStorage` and is never sent to a proprietary backend database.
-*   **Transient AI Processing:** Data is sent to the Gemini API solely for the purpose of generation and analysis.
-*   **Enterprise Ready:** Designed to be easily containerized and deployed within secure corporate intranets or private clouds.
-
----
-
-## 🤝 Contributing
-
-We welcome contributions from the open-source community. Please read `CONTRIBUTING.md` for details on our code of conduct and the process for submitting pull requests.
+*   **Zero-Knowledge Backend:** We do not store your data. Everything is processed transiently via the API and saved locally on your device.
+*   **Enterprise Ready:** Designed for secure deployment within corporate intranets for outplacement services.
 
 ---
 
