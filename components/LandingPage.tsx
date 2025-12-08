@@ -141,19 +141,21 @@ interface HowItWorksStepProps {
 const HowItWorksStep: React.FC<HowItWorksStepProps> = ({ number, title, description, icon, observeRef, style }) => (
   <div 
     ref={observeRef}
-    className="flex flex-col items-center text-center p-4 stats-reveal"
+    className="flex flex-col items-center text-center p-4 stats-reveal group hover:scale-105 transition-transform duration-300"
     style={style}
   >
-    <div className="relative mb-4">
-      <div className="flex items-center justify-center w-16 h-16 bg-gradient-to-br from-premium-gradient-from to-premium-gradient-to text-white rounded-full text-2xl font-bold font-display shadow-lg">
+    <div className="relative mb-6">
+      <div className="flex items-center justify-center w-16 h-16 bg-gradient-to-br from-premium-gradient-from to-premium-gradient-to text-white rounded-full text-2xl font-bold font-display shadow-lg animate-float">
         {number}
       </div>
-      <div className="absolute -top-2 -right-2 p-2 bg-dark-light rounded-full shadow-md border border-dark-lighter">
+      <div className="absolute -top-3 -right-3 p-2 bg-dark-light rounded-full shadow-md border border-dark-lighter scale-0 group-hover:scale-100 transition-transform duration-300 delay-100">
         {icon}
       </div>
+      {/* Animated Connector Ring */}
+      <div className="absolute inset-0 rounded-full border-2 border-dashed border-sky-500/30 animate-spin-slow pointer-events-none"></div>
     </div>
-    <h4 className="text-lg font-semibold mb-1 text-sky-400">{title}</h4>
-    <p className="text-slate-400 text-xs">{description}</p>
+    <h4 className="text-lg font-semibold mb-2 text-sky-400 group-hover:text-sky-300 transition-colors">{title}</h4>
+    <p className="text-slate-400 text-xs leading-relaxed max-w-[200px]">{description}</p>
   </div>
 );
 
@@ -339,6 +341,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onInterestRegistered }
         .hero-resume-preview:hover .resume-3d-mockup {
           transform: rotateX(5deg) rotateY(-3deg) rotateZ(0deg) scale(1.03);
         }
+        @keyframes spin-slow {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        .animate-spin-slow {
+            animation: spin-slow 12s linear infinite;
+        }
       `}</style>
 
       <nav className="sticky top-0 z-50 bg-dark/70 backdrop-blur-lg shadow-xl">
@@ -428,11 +437,15 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onInterestRegistered }
       <section ref={addToObservedElements} className="py-20 bg-dark-light">
         <div className="container mx-auto px-6">
           <h2 className="text-3xl lg:text-4xl font-bold font-display text-center mb-16 text-sky-400">Launch Your Next Career Move in Minutes</h2>
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8 items-start">
-            <HowItWorksStep observeRef={addToObservedElements} number="1" title="Input Your Story" description="Paste resume details or jot down notes." icon={<CogIcon className="w-6 h-6 text-sky-300"/>} style={{transitionDelay: '0s'}}/>
-            <HowItWorksStep observeRef={addToObservedElements} number="2" title="Target Your Role" description="Add job description for AI tailoring & analysis." icon={<DocumentMagnifyingGlassIcon className="w-6 h-6 text-sky-300"/>} style={{transitionDelay: '0.1s'}}/>
-            <HowItWorksStep observeRef={addToObservedElements} number="3" title="AI Perfects & Analyzes" description="Our AI crafts your resume, providing key insights." icon={<SparklesIcon className="w-6 h-6 text-sky-300"/>} style={{transitionDelay: '0.2s'}}/>
-            <HowItWorksStep observeRef={addToObservedElements} number="4" title="Apply with Confidence" description="Download PDF, copy text, and secure interviews!" icon={<RocketLaunchIcon className="w-6 h-6 text-sky-300"/>} style={{transitionDelay: '0.3s'}}/>
+          {/* Added a subtle line connecting the steps visually on large screens */}
+          <div className="relative">
+             <div className="hidden lg:block absolute top-8 left-[12.5%] right-[12.5%] h-0.5 bg-gradient-to-r from-transparent via-sky-500/20 to-transparent border-t border-dashed border-sky-500/30 -z-10"></div>
+             <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8 items-start">
+                <HowItWorksStep observeRef={addToObservedElements} number="1" title="Input Your Story" description="Paste resume details or jot down notes." icon={<CogIcon className="w-6 h-6 text-sky-300"/>} style={{transitionDelay: '0s'}}/>
+                <HowItWorksStep observeRef={addToObservedElements} number="2" title="Target Your Role" description="Add job description for AI tailoring & analysis." icon={<DocumentMagnifyingGlassIcon className="w-6 h-6 text-sky-300"/>} style={{transitionDelay: '0.1s'}}/>
+                <HowItWorksStep observeRef={addToObservedElements} number="3" title="AI Perfects & Analyzes" description="Our AI crafts your resume, providing key insights." icon={<SparklesIcon className="w-6 h-6 text-sky-300"/>} style={{transitionDelay: '0.2s'}}/>
+                <HowItWorksStep observeRef={addToObservedElements} number="4" title="Apply with Confidence" description="Download PDF, copy text, and secure interviews!" icon={<RocketLaunchIcon className="w-6 h-6 text-sky-300"/>} style={{transitionDelay: '0.3s'}}/>
+             </div>
           </div>
         </div>
       </section>

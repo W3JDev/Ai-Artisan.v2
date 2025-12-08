@@ -10,15 +10,20 @@ import {
   getSuggestionForGap, 
   generateInterviewQuestions,
   generateHeadshot,
+  generateBrandVideo,
   researchIndustryTrends,
-  runAtsAudit
+  runAtsAudit,
+  performDeepMatchAnalysis
 } from './services/geminiService';
-import type { ResumeData, TemplateName, FontGroupName, CoverLetterTone, ResumeSettings, AtsAuditResult } from './types';
+import type { ResumeData, TemplateName, FontGroupName, CoverLetterTone, ResumeSettings, AtsAuditResult, TargetRegion, SavedVersion } from './types';
 import { LoadingSpinner } from './components/LoadingSpinner';
 import { 
   LightBulbIcon, XMarkIcon, BriefcaseIcon, DocumentMagnifyingGlassIcon, 
-  SparklesIcon, UserGroupIcon, CogIcon, CheckIcon, CpuChipIcon, ExclamationTriangleIcon
+  SparklesIcon, UserGroupIcon, CogIcon, CheckIcon, CpuChipIcon, ExclamationTriangleIcon, 
+  ClockIcon, TrashIcon, ArrowUturnLeftIcon, ArrowTrendingUpIcon,
+  MagnifyingGlassPlusIcon, MagnifyingGlassMinusIcon, ArrowsPointingInIcon
 } from './components/icons';
+import { formatResumeDataAsText } from './utils/textUtils';
 
 // Sample Data
 const SAMPLE_RAW_TEXT = `John Doe
@@ -39,12 +44,13 @@ const SAMPLE_JOB_DESCRIPTION = `Looking for a Senior Product Lead to drive AI in
 const STORAGE_KEYS = {
     RAW_TEXT: 'artisan_raw_text',
     JOB_DESC: 'artisan_job_desc',
-    THEME: 'artisan_theme'
+    THEME: 'artisan_theme',
+    HISTORY: 'artisan_resume_history'
 };
 
 const App = () => {
   // --- State ---
-  const [activeTab, setActiveTab] = useState<'resume' | 'cover-letter' | 'analysis'>('resume');
+  const [activeTab, setActiveTab] = useState<'resume' | 'cover-letter' | 'analysis' | 'history'>('resume');
   
   const [rawText, setRawText] = useState<string>('');
   const [jobDescription, setJobDescription] = useState<string>('');
@@ -60,9 +66,19 @@ const App = () => {
   const [industryTrends, setIndustryTrends] = useState<string | null>(null);
   const [isResearching, setIsResearching] = useState<boolean>(false);
   
+  // Video Generation State (Veo 3)
+  const [isGeneratingVideo, setIsGeneratingVideo] = useState<boolean>(false);
+  const [generatedVideoUrl, setGeneratedVideoUrl] = useState<string | null>(null);
+
   // ATS Audit State
   const [atsAuditResult, setAtsAuditResult] = useState<AtsAuditResult | null>(null);
   const [isAuditingAts, setIsAuditingAts] = useState<boolean>(false);
+
+  // Match Analysis State
+  const [isAnalyzingMatch, setIsAnalyzingMatch] = useState<boolean>(false);
+
+  // Version History State
+  const [savedVersions, setSavedVersions] = useState<SavedVersion[]>([]);
 
   const [isLoadingResume, setIsLoadingResume] = useState<boolean>(false);
   const [isLoadingCoverLetter, setIsLoadingCoverLetter] = useState<boolean>(false);
@@ -72,6 +88,7 @@ const App = () => {
   // Settings
   const [selectedTemplate, setSelectedTemplate] = useState<TemplateName>('enterprise-pro');
   const [selectedFontGroup, setSelectedFontGroup] = useState<FontGroupName>('serif');
+  const [targetRegion, setTargetRegion] = useState<TargetRegion>('US_CANADA'); // Default to US
   const [coverLetterTone, setCoverLetterTone] = useState<CoverLetterTone>('professional');
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   
@@ -87,7 +104,12 @@ const App = () => {
   const [gapSuggestion, setGapSuggestion] = useState<string | null>(null);
   const [isLoadingGapSuggestion, setIsLoadingGapSuggestion] = useState<boolean>(false);
 
+  // Responsive Scale State
+  const [previewScale, setPreviewScale] = useState(1);
+  const [isManualZoom, setIsManualZoom] = useState(false);
+  
   // Layout refs
+  const previewContainerRef = useRef<HTMLDivElement>(null);
   const previewRef = useRef<HTMLDivElement>(null);
 
   // --- Persistence Logic ---
@@ -95,12 +117,21 @@ const App = () => {
     // Hydrate on mount
     const savedText = localStorage.getItem(STORAGE_KEYS.RAW_TEXT);
     const savedJd = localStorage.getItem(STORAGE_KEYS.JOB_DESC);
+    const savedHistory = localStorage.getItem(STORAGE_KEYS.HISTORY);
+    
     if (savedText) setRawText(savedText);
     if (savedJd) setJobDescription(savedJd);
+    if (savedHistory) {
+        try {
+            setSavedVersions(JSON.parse(savedHistory));
+        } catch (e) {
+            console.error("Failed to parse history", e);
+        }
+    }
   }, []);
 
   useEffect(() => {
-    // Auto-save debounce could be added here, but direct set for text inputs is usually fine for small data
+    // Auto-save debounce
     localStorage.setItem(STORAGE_KEYS.RAW_TEXT, rawText);
     setLastSaved(new Date());
   }, [rawText]);
@@ -110,18 +141,116 @@ const App = () => {
     setLastSaved(new Date());
   }, [jobDescription]);
 
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.HISTORY, JSON.stringify(savedVersions));
+  }, [savedVersions]);
+
+  // Responsive Scaling Logic
+  const fitToScreen = useCallback(() => {
+    if (previewContainerRef.current) {
+        const containerWidth = previewContainerRef.current.offsetWidth;
+        const padding = 60; // Approximate padding (left/right + gaps)
+        const a4Width = 794; // approx A4 width in px at 96 DPI
+        const availableWidth = containerWidth - padding;
+        
+        // Calculate scale to fit width
+        let newScale = availableWidth / a4Width;
+        // Clamp to reasonable defaults for "Fit" mode
+        newScale = Math.min(Math.max(newScale, 0.3), 1.0); 
+        
+        setPreviewScale(newScale);
+        setIsManualZoom(false); // Reset manual flag
+      }
+  }, []);
+
+  useEffect(() => {
+    const handleResize = () => {
+      // Only auto-scale if the user hasn't manually zoomed in/out
+      if (!isManualZoom) {
+        fitToScreen();
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    // Initial calculation after mount to ensure ref is ready
+    setTimeout(fitToScreen, 100);
+
+    return () => window.removeEventListener('resize', handleResize);
+  }, [fitToScreen, isManualZoom]);
+
+  // Zoom Handlers
+  const handleZoomIn = () => {
+    setPreviewScale(prev => {
+        const next = Math.min(prev + 0.1, 1.5); // Max 150%
+        return parseFloat(next.toFixed(2));
+    });
+    setIsManualZoom(true);
+  };
+
+  const handleZoomOut = () => {
+    setPreviewScale(prev => {
+        const next = Math.max(prev - 0.1, 0.3); // Min 30%
+        return parseFloat(next.toFixed(2));
+    });
+    setIsManualZoom(true);
+  };
+
+  const handleResetZoom = () => {
+      fitToScreen();
+  };
+
+
   const handleClearData = () => {
     localStorage.removeItem(STORAGE_KEYS.RAW_TEXT);
     localStorage.removeItem(STORAGE_KEYS.JOB_DESC);
+    localStorage.removeItem(STORAGE_KEYS.HISTORY);
     setRawText('');
     setJobDescription('');
     setResumeData(null);
     setCoverLetter('');
+    setSavedVersions([]);
     setShowSettingsModal(false);
-    window.location.reload(); // Cleanest way to reset all state for now
+    window.location.reload(); 
   };
 
   // --- Handlers ---
+
+  const handleSaveVersion = () => {
+    if (!resumeData) {
+        setError("Cannot save empty resume.");
+        return;
+    }
+    const newVersion: SavedVersion = {
+        id: crypto.randomUUID(),
+        timestamp: Date.now(),
+        label: resumeData.jobTitle || 'Untitled Version',
+        rawText,
+        jobDescription,
+        resumeData,
+        selectedTemplate,
+        selectedFontGroup,
+        targetRegion
+    };
+    setSavedVersions(prev => [newVersion, ...prev]);
+  };
+
+  const handleRestoreVersion = (version: SavedVersion) => {
+    if(window.confirm(`Restore version "${version.label}"? This will overwrite your current workspace.`)) {
+        setRawText(version.rawText);
+        setJobDescription(version.jobDescription);
+        setResumeData(version.resumeData);
+        setSelectedTemplate(version.selectedTemplate);
+        setSelectedFontGroup(version.selectedFontGroup);
+        setTargetRegion(version.targetRegion);
+        setActiveTab('resume');
+    }
+  };
+
+  const handleDeleteVersion = (id: string) => {
+    if(window.confirm("Delete this version permanently?")) {
+        setSavedVersions(prev => prev.filter(v => v.id !== id));
+    }
+  };
 
   const handleResearchTrends = async () => {
     if (!jobDescription) {
@@ -155,6 +284,19 @@ const App = () => {
     }
   };
 
+  const handleGenerateVideo = async (prompt: string, aspectRatio: '16:9' | '9:16') => {
+    setIsGeneratingVideo(true);
+    setGeneratedVideoUrl(null);
+    try {
+        const videoUrl = await generateBrandVideo(prompt, aspectRatio);
+        setGeneratedVideoUrl(videoUrl);
+    } catch(e) {
+        setError("Failed to generate video. Please try again later.");
+    } finally {
+        setIsGeneratingVideo(false);
+    }
+  };
+
   const handleRunAtsAudit = async () => {
     if (!resumeData || !jobDescriptionUsedForLastResume) return;
     setIsAuditingAts(true);
@@ -169,6 +311,29 @@ const App = () => {
     }
   };
 
+  const handleDeepMatchAnalysis = async () => {
+    if (!resumeData || !jobDescriptionUsedForLastResume) {
+        setError("Resume and Job Description required for analysis.");
+        return;
+    }
+    setIsAnalyzingMatch(true);
+    try {
+        const newAnalysis = await performDeepMatchAnalysis(resumeData, jobDescriptionUsedForLastResume);
+        setResumeData(prev => prev ? ({ ...prev, jobMatchAnalysis: newAnalysis }) : null);
+    } catch (e) {
+        setError("Failed to perform deep match analysis.");
+    } finally {
+        setIsAnalyzingMatch(false);
+    }
+  };
+
+  const handleResumeAnalysisComplete = useCallback((data: ResumeData) => {
+    setResumeData(data);
+    const textRepresentation = formatResumeDataAsText(data);
+    setRawText(textRepresentation);
+    setActiveTab('resume');
+  }, []);
+
   const handleGenerateResume = useCallback(async (suggestionContext?: { originalGap: string; aiSuggestion: string; }) => {
     if (!rawText.trim()) return setError('Please input resume details.');
     setIsLoadingResume(true);
@@ -177,13 +342,12 @@ const App = () => {
         setResumeData(null);
         setJobDescriptionUsedForLastResume(jobDescription);
         setInterviewQuestions(null);
-        setAtsAuditResult(null); // Reset audit on new resume
+        setAtsAuditResult(null); 
     }
     
     try {
       const jd = suggestionContext ? jobDescriptionUsedForLastResume : jobDescription;
-      // Pass industry trends if available
-      const data = await generateResumeFromText(rawText, jd, suggestionContext, industryTrends || undefined);
+      const data = await generateResumeFromText(rawText, jd, suggestionContext, industryTrends || undefined, targetRegion);
       setResumeData(data);
       if (suggestionContext) {
         setSelectedGap(null);
@@ -195,7 +359,7 @@ const App = () => {
     } finally {
       setIsLoadingResume(false);
     }
-  }, [rawText, jobDescription, jobDescriptionUsedForLastResume, industryTrends]);
+  }, [rawText, jobDescription, jobDescriptionUsedForLastResume, industryTrends, targetRegion]);
 
   const handleGenerateCoverLetter = useCallback(async () => {
     if (!resumeData || !jobDescription) return setError('Resume and Job Description required.');
@@ -231,8 +395,6 @@ const App = () => {
     await handleGenerateResume({ originalGap: selectedGap.text, aiSuggestion: gapSuggestion });
   };
 
-  // --- Render ---
-
   return (
     <div className="flex h-screen w-full bg-obsidian text-platinum overflow-hidden font-sans selection:bg-accent selection:text-white">
       
@@ -262,6 +424,12 @@ const App = () => {
             icon={<UserGroupIcon />} 
             label="Insights" 
             disabled={!resumeData?.jobMatchAnalysis}
+          />
+          <NavButton 
+            active={activeTab === 'history'} 
+            onClick={() => setActiveTab('history')} 
+            icon={<ClockIcon />} 
+            label="History" 
           />
         </div>
 
@@ -318,6 +486,8 @@ const App = () => {
                     onTemplateChange={setSelectedTemplate}
                     selectedFontGroup={selectedFontGroup}
                     onFontGroupChange={setSelectedFontGroup}
+                    targetRegion={targetRegion}
+                    onTargetRegionChange={setTargetRegion}
                     onTryExample={() => { setRawText(SAMPLE_RAW_TEXT); setJobDescription(SAMPLE_JOB_DESCRIPTION); }}
                     coverLetterTone={coverLetterTone}
                     onCoverLetterToneChange={setCoverLetterTone}
@@ -331,10 +501,16 @@ const App = () => {
                     onResearchTrends={handleResearchTrends}
                     isResearching={isResearching}
                     industryTrends={industryTrends}
+                    onAnalysisComplete={handleResumeAnalysisComplete}
+                    onSaveVersion={handleSaveVersion}
+                    // Veo Video
+                    onGenerateVideo={handleGenerateVideo}
+                    isGeneratingVideo={isGeneratingVideo}
+                    generatedVideoUrl={generatedVideoUrl}
                 />
             </div>
             
-            {/* Analysis Panel */}
+            {/* Analysis Panel - Gap Analysis Improved */}
             {activeTab === 'analysis' && resumeData && (
                 <div className="space-y-8 animate-fade-in-up">
                     
@@ -343,7 +519,17 @@ const App = () => {
                         <div className="absolute top-0 right-0 p-3 opacity-10">
                             <SparklesIcon className="w-24 h-24 text-accent" />
                         </div>
-                        <h3 className="text-white font-bold mb-6 flex items-center font-serif text-xl"><SparklesIcon className="w-5 h-5 mr-3 text-accent"/> Strategic Alignment</h3>
+                        <div className="flex justify-between items-center mb-6">
+                            <h3 className="text-white font-bold flex items-center font-serif text-xl"><SparklesIcon className="w-5 h-5 mr-3 text-accent"/> Strategic Alignment</h3>
+                            <button 
+                                onClick={handleDeepMatchAnalysis}
+                                disabled={isAnalyzingMatch}
+                                className="bg-white/10 hover:bg-white/20 text-white text-[10px] font-bold px-3 py-1.5 rounded-full flex items-center backdrop-blur-md transition-all border border-white/5 disabled:opacity-50"
+                            >
+                                {isAnalyzingMatch ? <LoadingSpinner size="h-3 w-3" color="text-white"/> : <ArrowTrendingUpIcon className="w-3 h-3 mr-1.5"/>}
+                                {isAnalyzingMatch ? 'Auditing...' : 'Deep Keyword Audit'}
+                            </button>
+                        </div>
                         
                         <div className="flex items-end gap-3 mb-3">
                              <span className="text-5xl font-bold text-white tracking-tighter">{resumeData.jobMatchAnalysis?.matchScore || 0}%</span>
@@ -355,26 +541,30 @@ const App = () => {
 
                         <div className="space-y-4">
                             {resumeData.jobMatchAnalysis?.gaps?.map((gap, i) => (
-                                <div key={i} className="bg-charcoal/40 p-4 rounded-lg border-l-2 border-red-500/50 hover:border-red-500 transition-colors group">
-                                    <div className="flex justify-between items-start mb-2">
+                                <div key={i} className={`bg-charcoal/40 rounded-lg border-l-2 border-red-500/50 hover:border-red-500 transition-all duration-300 group overflow-hidden ${selectedGap?.index === i ? 'bg-charcoal/60 shadow-lg' : ''}`}>
+                                    <div 
+                                        className="flex justify-between items-start p-4 cursor-pointer"
+                                        onClick={() => handleGapAction(gap, i)}
+                                    >
                                         <p className="text-sm text-platinum leading-relaxed pr-2">{gap}</p>
-                                        <button onClick={() => handleGapAction(gap, i)} className="text-subtle hover:text-accent transition-colors">
-                                            <LightBulbIcon className={`w-5 h-5 transition-all duration-300 ${selectedGap?.index === i ? 'text-accent drop-shadow-[0_0_8px_rgba(245,158,11,0.5)]' : ''}`}/>
+                                        <button className="text-subtle hover:text-accent transition-colors">
+                                            <LightBulbIcon className={`w-5 h-5 transition-transform duration-300 ${selectedGap?.index === i ? 'text-accent scale-110 drop-shadow-[0_0_8px_rgba(245,158,11,0.5)]' : ''}`}/>
                                         </button>
                                     </div>
-                                    {selectedGap?.index === i && (
-                                        <div className="mt-4 animate-fade-in-up pl-4 border-l border-white/10">
+                                    
+                                    <div className={`transition-[max-height,opacity] duration-500 ease-in-out ${selectedGap?.index === i ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'}`}>
+                                        <div className="p-4 pt-0 pl-8 border-l border-white/10 ml-4 pb-6">
                                             {isLoadingGapSuggestion ? (
-                                                <div className="flex items-center py-2">
+                                                <div className="flex items-center py-4">
                                                     <LoadingSpinner size="h-4 w-4" color="text-accent" />
-                                                    <span className="ml-3 text-xs text-subtle">Gemini analyzing strategy...</span>
+                                                    <span className="ml-3 text-xs text-subtle animate-pulse">Gemini analyzing strategy...</span>
                                                 </div>
                                             ) : gapSuggestion ? (
-                                                <div className="bg-surface border border-white/5 rounded-lg p-4 shadow-xl">
+                                                <div className="bg-surface border border-white/5 rounded-lg p-4 shadow-xl animate-fade-in-up">
                                                     <h4 className="text-[10px] font-bold text-accent uppercase tracking-widest mb-2 flex items-center">
                                                         <SparklesIcon className="w-3 h-3 mr-2" /> Strategic Fix
                                                     </h4>
-                                                    <p className="text-sm text-platinum italic mb-4 leading-relaxed">
+                                                    <p className="text-sm text-platinum italic mb-4 leading-relaxed border-l-2 border-accent/30 pl-3">
                                                         "{gapSuggestion}"
                                                     </p>
                                                     <div className="flex gap-2">
@@ -385,7 +575,7 @@ const App = () => {
                                                             Apply Fix
                                                         </button>
                                                         <button 
-                                                            onClick={() => { setGapSuggestion(null); setSelectedGap(null); }} 
+                                                            onClick={(e) => { e.stopPropagation(); setGapSuggestion(null); setSelectedGap(null); }} 
                                                             className="px-3 py-2 bg-white/5 hover:bg-white/10 text-subtle text-xs font-bold rounded transition-colors"
                                                         >
                                                             Dismiss
@@ -394,7 +584,7 @@ const App = () => {
                                                 </div>
                                             ) : null}
                                         </div>
-                                    )}
+                                    </div>
                                 </div>
                             ))}
                         </div>
@@ -462,6 +652,54 @@ const App = () => {
                 </div>
             )}
             
+            {/* Version History List */}
+            {activeTab === 'history' && (
+                <div className="animate-fade-in-up pt-10">
+                    <h2 className="text-xl font-bold font-serif text-white mb-6 flex items-center px-4">
+                        <ClockIcon className="w-6 h-6 mr-3 text-accent" /> Version History
+                    </h2>
+                    {savedVersions.length === 0 ? (
+                        <div className="text-center py-10 px-6 bg-white/5 rounded-lg border border-dashed border-white/10 mx-6">
+                            <ClockIcon className="w-10 h-10 text-subtle mx-auto mb-3 opacity-50" />
+                            <p className="text-sm text-subtle">No snapshots saved yet.</p>
+                            <p className="text-[10px] text-slate-500 mt-2">Use "Save Snapshot" in the Resume tab to create restore points.</p>
+                        </div>
+                    ) : (
+                        <div className="space-y-4 px-6 pb-10">
+                            {savedVersions.map((version) => (
+                                <div key={version.id} className="bg-charcoal border border-glass-border p-4 rounded-xl hover:border-accent/50 transition-colors group relative">
+                                    <div className="flex justify-between items-start mb-2">
+                                        <div>
+                                            <h3 className="text-sm font-bold text-white truncate max-w-[200px]">{version.label || 'Untitled'}</h3>
+                                            <p className="text-[10px] text-slate-500 font-mono mt-1">
+                                                {new Date(version.timestamp).toLocaleDateString()} {new Date(version.timestamp).toLocaleTimeString()}
+                                            </p>
+                                        </div>
+                                        <span className="text-[10px] bg-white/10 px-2 py-0.5 rounded text-subtle uppercase">
+                                            {version.selectedTemplate}
+                                        </span>
+                                    </div>
+                                    <div className="mt-4 flex gap-2">
+                                        <button 
+                                            onClick={() => handleRestoreVersion(version)}
+                                            className="flex-1 bg-white/5 hover:bg-green-900/30 text-slate-300 hover:text-green-400 text-xs py-2 rounded border border-white/5 hover:border-green-500/30 transition-all flex items-center justify-center"
+                                        >
+                                            <ArrowUturnLeftIcon className="w-3 h-3 mr-1.5" /> Restore
+                                        </button>
+                                        <button 
+                                            onClick={() => handleDeleteVersion(version.id)}
+                                            className="px-3 py-2 bg-white/5 hover:bg-red-900/30 text-slate-400 hover:text-red-400 border border-white/5 hover:border-red-500/30 rounded transition-all"
+                                        >
+                                            <TrashIcon className="w-3 h-3" />
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            )}
+            
             {/* Cover Letter Context */}
             {activeTab === 'cover-letter' && (
                 <div className="space-y-6 animate-fade-in-up text-center pt-20">
@@ -480,21 +718,27 @@ const App = () => {
           </div>
         </section>
 
-        {/* Right Panel: Live Canvas */}
-        <section className="flex-1 relative overflow-hidden flex flex-col items-center justify-center p-4 lg:p-10 perspective-stage bg-[#05080F]">
+        {/* Right Panel: Live Canvas with Scale Wrapper */}
+        <section 
+            ref={previewContainerRef}
+            className="flex-1 relative flex flex-col items-center justify-start p-10 pt-16 perspective-stage bg-[#05080F] overflow-auto custom-scrollbar"
+        >
            
            {/* Cinematic Ambient Glow */}
-           <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-accent/5 rounded-full blur-[120px] pointer-events-none"></div>
-           <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-900/10 rounded-full blur-[100px] pointer-events-none"></div>
+           <div className="fixed top-[-20%] left-[-10%] w-[50%] h-[50%] bg-accent/5 rounded-full blur-[120px] pointer-events-none z-0"></div>
+           <div className="fixed bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-900/10 rounded-full blur-[100px] pointer-events-none z-0"></div>
 
-           {/* Content Container */}
+           {/* Content Container with Scaling */}
            <div 
              ref={previewRef}
              className={`
-               relative w-full transition-all duration-1000 ease-[cubic-bezier(0.23,1,0.32,1)] preserve-3d
-               ${!isLoadingResume && resumeData ? 'opacity-100 translate-y-0 rotate-x-0' : 'opacity-40 translate-y-10 rotate-x-6'}
+               relative w-[210mm] transition-all duration-300 ease-out origin-top
+               ${!isLoadingResume && resumeData ? 'opacity-100' : 'opacity-40'}
              `}
-             style={{ maxWidth: '850px' }} 
+             style={{ 
+                 transform: `scale(${previewScale})`,
+                 marginBottom: `${(previewScale - 1) * 300}px` // Add margin at bottom if zoomed in to allow scrolling past
+             }} 
            >
              {isLoadingResume || isLoadingCoverLetter ? (
                  <div className="absolute inset-0 flex items-center justify-center z-50">
@@ -508,8 +752,7 @@ const App = () => {
              ) : null}
 
              <div className={`
-                 transition-transform duration-700 shadow-3d-float
-                 ${activeTab === 'resume' ? 'hover:rotate-x-1 hover:rotate-y-1' : ''} 
+                 transition-shadow duration-700 shadow-3d-float
              `}>
                 {activeTab === 'resume' && resumeData && (
                     <ResumePreview 
@@ -524,9 +767,9 @@ const App = () => {
                     <CoverLetterPreview letter={coverLetter} resumeData={resumeData} />
                 )}
                 
-                {/* Empty State */}
+                {/* Empty State - Centered within the scaled area */}
                 {!resumeData && !isLoadingResume && (
-                    <div className="bg-charcoal/40 backdrop-blur-sm border border-white/5 rounded-xl p-12 text-center h-[600px] flex flex-col items-center justify-center dashed-border opacity-50">
+                    <div className="bg-charcoal/40 backdrop-blur-sm border border-white/5 rounded-xl p-12 text-center h-[297mm] flex flex-col items-center justify-center dashed-border opacity-50">
                         <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mb-6">
                             <BriefcaseIcon className="w-8 h-8 text-subtle" />
                         </div>
@@ -537,6 +780,47 @@ const App = () => {
                     </div>
                 )}
              </div>
+           </div>
+
+           {/* Floating Zoom Toolbar */}
+           <div className="fixed bottom-6 z-50 flex items-center bg-charcoal/90 backdrop-blur-md border border-white/10 rounded-full shadow-2xl px-2 py-1.5 animate-fade-in-up">
+              <button 
+                onClick={handleZoomOut}
+                className="p-2 text-slate-400 hover:text-white transition-colors rounded-full hover:bg-white/10"
+                title="Zoom Out"
+              >
+                  <MagnifyingGlassMinusIcon className="w-5 h-5" />
+              </button>
+              
+              <div className="w-px h-4 bg-white/10 mx-1"></div>
+              
+              <button 
+                onClick={handleResetZoom}
+                className="px-3 py-1 text-xs font-mono text-slate-300 hover:text-white transition-colors"
+                title="Fit to Screen"
+              >
+                  {Math.round(previewScale * 100)}%
+              </button>
+              
+              <div className="w-px h-4 bg-white/10 mx-1"></div>
+
+              <button 
+                onClick={handleZoomIn}
+                className="p-2 text-slate-400 hover:text-white transition-colors rounded-full hover:bg-white/10"
+                title="Zoom In"
+              >
+                  <MagnifyingGlassPlusIcon className="w-5 h-5" />
+              </button>
+              
+               <div className="w-px h-4 bg-white/10 mx-1"></div>
+               
+              <button 
+                onClick={fitToScreen}
+                className="p-2 text-accent/80 hover:text-accent transition-colors rounded-full hover:bg-white/10"
+                title="Reset Fit"
+              >
+                  <ArrowsPointingInIcon className="w-5 h-5" />
+              </button>
            </div>
         </section>
 

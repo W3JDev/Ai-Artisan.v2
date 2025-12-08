@@ -29,9 +29,9 @@ export const CoverLetterPreview: React.FC<CoverLetterPreviewProps> = ({ letter, 
   // Construct the full letter text for the PDF download
   const fullLetterTextForPdf = [
     name,
-    contact.location,
-    contact.phone,
-    contact.email,
+    contact?.location,
+    contact?.phone,
+    contact?.email,
     '', // space
     currentDate,
     '', // space
@@ -61,9 +61,9 @@ export const CoverLetterPreview: React.FC<CoverLetterPreviewProps> = ({ letter, 
         {/* Sender's Info */}
         <div className="text-left">
           <p className="font-bold text-lg text-primary">{name}</p>
-          {contact.location && <p className="text-sm text-gray-600">{contact.location}</p>}
-          {contact.phone && <p className="text-sm text-gray-600">{contact.phone}</p>}
-          {contact.email && <p className="text-sm text-gray-600">{contact.email}</p>}
+          {contact?.location && <p className="text-sm text-gray-600">{contact.location}</p>}
+          {contact?.phone && <p className="text-sm text-gray-600">{contact.phone}</p>}
+          {contact?.email && <p className="text-sm text-gray-600">{contact.email}</p>}
         </div>
 
         {/* Date */}

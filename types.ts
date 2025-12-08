@@ -3,6 +3,7 @@ export type TemplateName = 'enterprise-pro' | 'modern-compact' | 'classic-serif'
 export type FontGroupName = 'sans-serif' | 'serif' | 'mono';
 export type TailoringStrength = 'Excellent' | 'Good' | 'Fair';
 export type CoverLetterTone = 'professional' | 'enthusiastic' | 'formal';
+export type TargetRegion = 'US_CANADA' | 'EUROPE_UK' | 'ASIA_PACIFIC' | 'GLOBAL';
 
 export interface ResumeSettings {
   margin: 'compact' | 'standard' | 'generous';
@@ -67,6 +68,18 @@ export interface ResumeData {
   suggestedHeadshotPrompt?: string; 
 }
 
+export interface SavedVersion {
+  id: string;
+  timestamp: number;
+  label: string;
+  rawText: string;
+  jobDescription: string;
+  resumeData: ResumeData;
+  selectedTemplate: TemplateName;
+  selectedFontGroup: FontGroupName;
+  targetRegion: TargetRegion;
+}
+
 export interface ResumeInputProps {
   rawText: string;
   onRawTextChange: (text: string) => void;
@@ -77,10 +90,15 @@ export interface ResumeInputProps {
   isGeneratingResume: boolean;
   isGeneratingCoverLetter: boolean;
   resumeGenerated: boolean;
+  
   selectedTemplate: TemplateName;
   onTemplateChange: (template: TemplateName) => void;
   selectedFontGroup: FontGroupName;
   onFontGroupChange: (fontGroup: FontGroupName) => void;
+  
+  targetRegion: TargetRegion;
+  onTargetRegionChange: (region: TargetRegion) => void;
+
   onTryExample: () => void;
   coverLetterTone: CoverLetterTone;
   onCoverLetterToneChange: (tone: CoverLetterTone) => void;
@@ -95,6 +113,15 @@ export interface ResumeInputProps {
   onResearchTrends: () => void;
   isResearching: boolean;
   industryTrends: string | null;
+  onAnalysisComplete?: (data: ResumeData) => void;
+  
+  // Version History
+  onSaveVersion: () => void;
+
+  // Video Generation
+  onGenerateVideo: (prompt: string, aspectRatio: '16:9' | '9:16') => void;
+  isGeneratingVideo: boolean;
+  generatedVideoUrl: string | null;
 }
 
 export interface ResumePreviewProps {

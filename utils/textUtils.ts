@@ -58,9 +58,11 @@ export const linkifyText = (text: string): React.ReactNode[] => {
 };
 
 export function formatResumeDataAsText(data: ResumeData): string {
+  if (!data) return '';
+
   let text = '';
 
-  text += `${data.name.toUpperCase()}\n`;
+  text += `${(data.name || '').toUpperCase()}\n`;
   if (data.jobTitle) {
     text += `${data.jobTitle}\n`;
   }
@@ -94,11 +96,13 @@ export function formatResumeDataAsText(data: ResumeData): string {
   if (data.experience && data.experience.length > 0) {
     text += 'EXPERIENCE\n';
     data.experience.forEach(exp => {
-      text += `${exp.role.toUpperCase()} | ${exp.company}\n`;
-      text += `${exp.dates}\n`;
-      exp.responsibilities.forEach(resp => {
-        text += `- ${resp}\n`;
-      });
+      text += `${(exp.role || '').toUpperCase()} | ${exp.company || ''}\n`;
+      text += `${exp.dates || ''}\n`;
+      if (exp.responsibilities) {
+        exp.responsibilities.forEach(resp => {
+            text += `- ${resp}\n`;
+        });
+      }
       text += '\n';
     });
   }
@@ -107,8 +111,8 @@ export function formatResumeDataAsText(data: ResumeData): string {
   if (data.education && data.education.length > 0) {
     text += 'EDUCATION\n';
     data.education.forEach(edu => {
-      text += `${edu.degree} | ${edu.institution}\n`;
-      text += `${edu.details}\n\n`;
+      text += `${edu.degree || ''} | ${edu.institution || ''}\n`;
+      text += `${edu.details || ''}\n\n`;
     });
   }
 
@@ -123,9 +127,15 @@ export function formatResumeDataAsText(data: ResumeData): string {
   }
 
   // Skills
-  if (data.skills && data.skills.length > 0) {
-    text += 'SKILLS\n';
-    text += data.skills.join(' • ') + '\n';
+  if (data.skills) {
+    const skillsList = Array.isArray(data.skills) 
+        ? data.skills 
+        : (typeof data.skills === 'string' ? (data.skills as string).split(',').map(s => s.trim()).filter(Boolean) : []);
+        
+    if (skillsList.length > 0) {
+        text += 'SKILLS\n';
+        text += skillsList.join(' • ') + '\n';
+    }
   }
 
   return text.trim();

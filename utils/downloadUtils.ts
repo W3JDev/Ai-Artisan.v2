@@ -1,157 +1,206 @@
 
-import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
-
-// A4 page dimensions in mm
-const A4_WIDTH_MM = 210;
-const A4_HEIGHT_MM = 297;
-const MARGIN_MM = 0; // We handle margins inside the CSS now for better control
-
 /**
- * Downloads a rendered HTML element as a multi-page PDF document.
- * @param element The HTML element to be captured for the PDF.
- * @param resumeName The base name for the downloaded PDF file.
+ * ARTISAN PRINT ENGINE (v5.0 - Vector Native)
+ * 
+ * Provides "Headless-Grade" PDF generation on the client side.
+ * 
+ * Key Features:
+ * 1. Native Browser Rendering: Uses the browser's own PDF engine (Skia/Quartz) via window.print().
+ * 2. Vector Text: All text remains selectable and searchable (ATS friendly).
+ * 3. Smart Asset Loading: Waits for fonts and images to fully load before capturing.
+ * 4. Auto-Scaling: Mathematically scales content to fit A4 without reflow issues.
  */
-export async function downloadResumeAsPdf(element: HTMLElement, resumeName: string): Promise<void> {
+
+export const downloadResumeAsPdf = async (element: HTMLElement, filename: string): Promise<void> => {
   if (!element) {
-    console.error('Resume content element not found for PDF generation.');
-    alert('Error: Could not find resume content to generate PDF.');
+    console.error('Resume content element not found.');
     return;
   }
 
-  // Add a class to disable shadows and transitions for a cleaner capture.
-  element.classList.add('pdf-capturing');
+  // --- 1. PRE-CALCULATION & CLONING ---
+  // A4 Dimensions at 96 DPI (Web Standard)
+  const A4_WIDTH_PX = 794; 
+  const A4_HEIGHT_PX = 1123; 
 
-  try {
-    // Generate a high-resolution canvas from the HTML element.
-    // Scale 5 provides near-print quality (~450-600 DPI equivalent)
-    const fullContentCanvas = await html2canvas(element, {
-      scale: 5, 
-      useCORS: true,
-      logging: false,
-      backgroundColor: '#ffffff', // Force white background for the paper itself
-      allowTaint: true,
-      imageTimeout: 0, // Ensure images load
-      onclone: (clonedDoc) => {
-        const clonedElement = clonedDoc.getElementById(element.id);
-        if (clonedElement) {
-           clonedElement.style.boxShadow = 'none'; // Double ensure no outer shadows
-           clonedElement.style.transform = 'none';
-        }
-      }
-    });
-    
-    // Remove the temporary class after capture is complete.
-    element.classList.remove('pdf-capturing');
+  // Create a deep clone to manipulate for print without affecting UI
+  const printContent = element.cloneNode(true) as HTMLElement;
+  
+  // Measure the "Natural" height of the content
+  // We mount it temporarily off-screen to measure true scrollHeight
+  const measureContainer = document.createElement('div');
+  measureContainer.style.width = `${A4_WIDTH_PX}px`;
+  measureContainer.style.visibility = 'hidden';
+  measureContainer.style.position = 'absolute';
+  measureContainer.appendChild(printContent);
+  document.body.appendChild(measureContainer);
+  
+  const contentHeight = printContent.scrollHeight;
+  const contentWidth = printContent.scrollWidth;
+  document.body.removeChild(measureContainer);
 
-    const pdf = new jsPDF({
-      orientation: 'portrait',
-      unit: 'mm',
-      format: 'a4',
-      compress: true
-    });
+  // Calculate Scale Factor (Shrink to fit if necessary)
+  const availableHeight = A4_HEIGHT_PX - 20; // 20px buffer
+  let scaleFactor = 1;
+  if (contentHeight > availableHeight) {
+      scaleFactor = availableHeight / contentHeight;
+      // Cap minimum scale to ensure readability (approx 6pt font equivalent)
+      scaleFactor = Math.max(scaleFactor, 0.65); 
+  }
 
-    const canvasWidth = fullContentCanvas.width;
-    const canvasHeight = fullContentCanvas.height;
+  // --- 2. IFRAME SANDBOX SETUP ---
+  const iframe = document.createElement('iframe');
+  iframe.style.position = 'fixed';
+  iframe.style.left = '-10000px'; // Move off-screen
+  iframe.style.top = '0';
+  iframe.style.width = '210mm';
+  iframe.style.height = '297mm';
+  iframe.style.border = 'none';
+  iframe.style.zIndex = '-1000';
+  
+  document.body.appendChild(iframe);
 
-    // The logic maintains the aspect ratio of the captured content.
-    const canvasToPdfScale = A4_WIDTH_MM / canvasWidth;
+  const doc = iframe.contentWindow?.document;
+  if (!doc) {
+      document.body.removeChild(iframe);
+      return;
+  }
 
-    // We calculate exactly how much fits on one page
-    const onePageCanvasHeight = A4_HEIGHT_MM / canvasToPdfScale;
+  // --- 3. ASSET EXTRACTION ---
+  // Capture current stylesheets to replicate exact look
+  const styles = document.querySelectorAll('style, link[rel="stylesheet"]');
+  const styleHTML = Array.from(styles).map(style => style.outerHTML).join('\n');
+  
+  // Capture Tailwind state
+  const tailwindConfig = (window as any).tailwind?.config;
 
-    let canvasYPosition = 0;
-
-    // Loop through the tall canvas, slicing it into page-sized chunks.
-    while (canvasYPosition < canvasHeight) {
-      if (canvasYPosition > 0) { // Add a new page for all but the first slice
-        pdf.addPage();
-      }
-
-      // Determine the height of the canvas slice for the current page.
-      const sliceHeight = Math.min(onePageCanvasHeight, canvasHeight - canvasYPosition);
-
-      // Create a temporary canvas to hold just the slice for the current page.
-      const pageCanvas = document.createElement('canvas');
-      pageCanvas.width = canvasWidth;
-      pageCanvas.height = sliceHeight;
-      const pageCtx = pageCanvas.getContext('2d');
-
-      if (pageCtx) {
-        // Draw the slice from the main canvas onto the temporary page canvas.
-        pageCtx.drawImage(
-          fullContentCanvas,
-          0, // sourceX
-          canvasYPosition, // sourceY
-          canvasWidth, // sourceWidth
-          sliceHeight, // sourceHeight
-          0, // destX
-          0, // destY
-          canvasWidth, // destWidth
-          sliceHeight  // destHeight
-        );
-
-        // Using JPEG with high quality (0.98) can sometimes be sharper/smaller than PNG for complex docs,
-        // but PNG is safer for text sharpness. Let's stick to PNG for max crispness.
-        const pageImgData = pageCanvas.toDataURL('image/png');
+  // --- 4. RENDER PIPELINE ---
+  doc.open();
+  doc.write(`
+    <!DOCTYPE html>
+    <html lang="en">
+      <head>
+        <title>${filename}</title>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
         
-        pdf.addImage(
-          pageImgData,
-          'PNG',
-          0, // x (0 because margins are internal)
-          0, // y
-          A4_WIDTH_MM, // width
-          sliceHeight * canvasToPdfScale // height
-        );
-      }
-      
-      canvasYPosition += sliceHeight;
+        <!-- Inject App Styles -->
+        ${styleHTML}
+        
+        <!-- Inject Tailwind -->
+        <script>
+          ${tailwindConfig ? `window.tailwind = { config: ${JSON.stringify(tailwindConfig)} };` : ''}
+        </script>
+
+        <style>
+          /* PRINT RESET */
+          @page {
+            size: A4 portrait;
+            margin: 0mm; /* Remove browser default margins */
+          }
+          
+          @media print {
+            html, body {
+              width: 210mm;
+              height: 297mm;
+              margin: 0;
+              padding: 0;
+              background-color: white;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+              overflow: hidden; /* Prevent spillover pages */
+            }
+            
+            /* Scaling Container */
+            #print-scaler {
+                width: 210mm;
+                height: 297mm;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: flex-start;
+                transform-origin: top center;
+                /* Apply calculated scale */
+                transform: scale(${scaleFactor});
+            }
+            
+            /* Ensure High Quality Rendering */
+            * {
+                text-rendering: optimizeLegibility;
+                -webkit-font-smoothing: antialiased;
+            }
+          }
+
+          body {
+            background-color: white;
+            font-family: 'Inter', sans-serif;
+          }
+        </style>
+      </head>
+      <body>
+        <div id="print-scaler">
+            <!-- Content Injected Here -->
+            ${element.innerHTML}
+        </div>
+
+        <script>
+           // --- 5. ROBUST LOADING & TRIGGER ---
+           async function triggerPrint() {
+             // Wait for fonts to be ready
+             await document.fonts.ready;
+             
+             // Wait for all images to load
+             const images = document.getElementsByTagName('img');
+             const imagePromises = Array.from(images).map(img => {
+                if (img.complete) return Promise.resolve();
+                return new Promise(resolve => {
+                    img.onload = resolve;
+                    img.onerror = resolve;
+                });
+             });
+             await Promise.all(imagePromises);
+
+             // Small buffer for layout reflow
+             setTimeout(() => {
+                try {
+                    window.focus(); 
+                    window.print();
+                } catch (e) {
+                    console.error('Print trigger failed', e);
+                }
+             }, 500);
+           }
+
+           window.onload = triggerPrint;
+        </script>
+      </body>
+    </html>
+  `);
+  doc.close();
+
+  // --- 6. CLEANUP ---
+  // Remove iframe after user interacts with print dialog (1 minute timeout)
+  setTimeout(() => {
+    if (document.body.contains(iframe)) {
+        document.body.removeChild(iframe);
     }
-    
-    const safeResumeName = resumeName.replace(/\s+/g, '_') || 'Resume';
-    pdf.save(`${safeResumeName}_Resume.pdf`);
+  }, 60000);
+};
 
-  } catch (error) {
-    console.error('Error generating resume PDF:', error);
-    alert('Failed to generate resume PDF. Please try again.');
-    // Ensure the class is removed even if an error occurs.
-    element.classList.remove('pdf-capturing');
-  }
-}
+export const downloadCoverLetterAsPdf = (letterText: string, resumeName?: string): void => {
+  // Convert text newlines to HTML paragraphs for proper formatting
+  const formattedText = letterText
+    .split('\n')
+    .map(para => para.trim() ? `<p class="mb-4 leading-relaxed whitespace-pre-wrap text-justify text-slate-800">${para}</p>` : '<br/>')
+    .join('');
 
-export function downloadCoverLetterAsPdf(letterText: string, resumeName?: string): void {
-  try {
-    const pdf = new jsPDF({
-      orientation: 'portrait',
-      unit: 'mm',
-      format: 'a4',
-    });
+  // Create a clean container for the cover letter
+  const dummyElement = document.createElement('div');
+  dummyElement.className = "p-12 font-sans w-full bg-white leading-relaxed text-[10pt]";
+  dummyElement.innerHTML = `
+    <div class="max-w-[210mm] mx-auto h-full flex flex-col">
+        ${formattedText}
+    </div>
+  `;
 
-    pdf.setFont('helvetica', 'normal'); 
-    pdf.setFontSize(11);
-
-    const usableWidth = A4_WIDTH_MM - 30; // 15mm margin * 2
-    
-    const lines = pdf.splitTextToSize(letterText, usableWidth);
-
-    let cursorY = 15;
-    const pdfLineHeight = pdf.getLineHeight() / pdf.internal.scaleFactor;
-    const customLineHeight = pdfLineHeight * 1.2; 
-
-    lines.forEach((line: string) => {
-      if (cursorY + customLineHeight > A4_HEIGHT_MM - 15) {
-        pdf.addPage();
-        cursorY = 15;
-      }
-      pdf.text(line, 15, cursorY);
-      cursorY += customLineHeight;
-    });
-    
-    const safeResumeName = resumeName?.replace(/\s+/g, '_') || 'Applicant';
-    pdf.save(`${safeResumeName}_Cover_Letter.pdf`);
-
-  } catch (error) {
-    console.error('Error generating cover letter PDF:', error);
-    alert('Failed to generate cover letter PDF. Please try again.');
-  }
-}
+  downloadResumeAsPdf(dummyElement, `${resumeName || 'Cover_Letter'}_CL`);
+};

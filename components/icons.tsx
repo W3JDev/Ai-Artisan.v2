@@ -43,6 +43,30 @@ export const DownloadIcon: React.FC<IconProps> = ({ className = "w-5 h-5" }) => 
   </svg>
 );
 
+export const CloudArrowUpIcon: React.FC<IconProps> = ({ className = "w-5 h-5" }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M12 16.5V9.75m0 0l3 3m-3-3l-3 3M6.75 19.5a4.5 4.5 0 01-1.41-8.775 5.25 5.25 0 0110.233-2.33 3 3 0 013.758 3.848A3.752 3.752 0 0118 19.5H6.75z" />
+  </svg>
+);
+
+export const PhotoIcon: React.FC<IconProps> = ({ className = "w-5 h-5" }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+  </svg>
+);
+
+export const DocumentIcon: React.FC<IconProps> = ({ className = "w-5 h-5" }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9" />
+  </svg>
+);
+
+export const LinkIcon: React.FC<IconProps> = ({ className = "w-5 h-5" }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" />
+  </svg>
+);
+
 export const XMarkIcon: React.FC<IconProps> = ({ className = "w-5 h-5" }) => (
   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
     <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -64,6 +88,37 @@ export const CheckIcon: React.FC<IconProps> = ({ className = "w-5 h-5" }) => (
 export const LightBulbIcon: React.FC<IconProps> = ({ className = "w-5 h-5" }) => (
   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
     <path strokeLinecap="round" strokeLinejoin="round" d="M12 18v-5.25m0 0a3 3 0 00-3 3h6a3 3 0 00-3-3zm0 0V8.25m0 0A3.75 3.75 0 008.25 4.5S8.25 2.25 12 2.25s3.75 2.25 3.75 2.25A3.75 3.75 0 0012 8.25zM12 18.75a.75.75 0 00.75-.75V18a.75.75 0 00-.75-.75h0a.75.75 0 00-.75.75v.001c0 .414.336.75.75.75z" />
+  </svg>
+);
+
+export const MagnifyingGlassPlusIcon: React.FC<IconProps> = ({ className = "w-6 h-6" }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607zM10.5 7.5v6m3-3h-6" />
+  </svg>
+);
+
+export const MagnifyingGlassMinusIcon: React.FC<IconProps> = ({ className = "w-6 h-6" }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607zM13.5 10.5h-6" />
+  </svg>
+);
+
+export const ArrowsPointingInIcon: React.FC<IconProps> = ({ className = "w-6 h-6" }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M9 9V4.5M9 9H4.5M9 9L3.75 3.75M9 15v4.5M9 15H4.5M9 15l-5.25 5.25M15 9h4.5M15 9V4.5M15 9l5.25-5.25M15 15h4.5M15 15v4.5M15 15l5.25 5.25" />
+  </svg>
+);
+
+export const VideoCameraIcon: React.FC<IconProps> = ({ className = "w-6 h-6" }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25h-9A2.25 2.25 0 002.25 7.5v9a2.25 2.25 0 002.25 2.25z" />
+  </svg>
+);
+
+export const PlayCircleIcon: React.FC<IconProps> = ({ className = "w-6 h-6" }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+    <path strokeLinecap="round" strokeLinejoin="round" d="M15.91 11.672a.375.375 0 010 .656l-5.603 3.113a.375.375 0 01-.557-.328V8.887c0-.286.307-.466.557-.327l5.603 3.112z" />
   </svg>
 );
 
@@ -118,7 +173,7 @@ export const UserGroupIcon: React.FC<IconProps> = ({ className = "w-6 h-6" }) =>
 
 export const CogIcon: React.FC<IconProps> = ({ className = "w-6 h-6" }) => (
   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12a7.5 7.5 0 0015 0m-15 0a7.5 7.5 0 1115 0m-15 0H3m1.5 0H21m-1.5 0H3m18 0h-1.5m-15 0h1.5m15 0h-1.5m0 0H21m-3.75-6.375l-.94-2.09a7.5 7.5 0 00-1.748-2.09l-2.09-.94a7.5 7.5 0 00-2.09-1.748L12 2.25l-.94 2.09a7.5 7.5 0 00-2.09 1.748l-2.09.94a7.5 7.5 0 00-1.748 2.09l-.94 2.09a7.5 7.5 0 000 4.75l.94 2.09a7.5 7.5 0 001.748 2.09l2.09.94a7.5 7.5 0 002.09 1.748l.94 2.09a7.5 7.5 0 004.75 0l.94-2.09a7.5 7.5 0 001.748-2.09l2.09-.94a7.5 7.5 0 002.09-1.748l.94-2.09a7.5 7.5 0 000-4.75L21 12m-3.75 3.375L15 13.06l-.94-.94m2.09-3.75l.94-.94-2.09-2.09-.94.94m-3.75 2.09l-.94.94L9 15.94l.94.94m3.75-2.09l.94-.94-2.09-2.09-.94.94M12 15.75a3.75 3.75 0 100-7.5 3.75 3.75 0 000 7.5z" />
+    <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12a7.5 7.5 0 0015 0m-15 0a7.5 7.5 0 1115 0m-15 0H3m1.5 0H21m-1.5 0H3m18 0h-1.5m-15 0h1.5m15 0h-1.5m0 0H21m-3.75-6.375l-.94-2.09a7.5 7.5 0 00-1.748-2.09l-2.09-.94a7.5 7.5 0 00-2.09-1.748L12 2.25l-.94 2.09a7.5 7.5 0 00-2.09 1.748l-2.09.94a7.5 7.5 0 00-1.748 2.09l-.94 2.09a7.5 7.5 0 000 4.75l.94 2.09a7.5 7.5 0 001.748 2.09l2.09.94a7.5 7.5 0 002.09 1.748l.94 2.09a7.5 7.5 0 002.09-1.748l.94-2.09a7.5 7.5 0 000-4.75L21 12m-3.75 3.375L15 13.06l-.94-.94m2.09-3.75l.94-.94-2.09-2.09-.94.94m-3.75 2.09l-.94.94L9 15.94l.94.94m3.75-2.09l.94-.94-2.09-2.09-.94.94M12 15.75a3.75 3.75 0 100-7.5 3.75 3.75 0 000 7.5z" />
   </svg>
 );
 
@@ -160,7 +215,7 @@ export const TwitterXIcon: React.FC<IconProps> = ({ className = "w-6 h-6" }) => 
 
 export const ShareIcon: React.FC<IconProps> = ({ className = "w-5 h-5" }) => (
     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v1.5" />
     </svg>
 );
 
@@ -215,3 +270,16 @@ export const ExclamationTriangleIcon: React.FC<IconProps> = ({ className = "w-6 
     <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
   </svg>
 );
+
+export const ArrowUturnLeftIcon: React.FC<IconProps> = ({ className = "w-6 h-6" }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" />
+  </svg>
+);
+
+export const FloppyDiskIcon: React.FC<IconProps> = ({ className = "w-6 h-6" }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M5.25 5.25a3 3 0 013-3h7.5l5.25 5.25v10.5a3 3 0 01-3 3h-12a3 3 0 01-3-3V8.25a3 3 0 013-3zM9 5.25v4.5h6v-4.5M9 20.25v-6h6v6" />
+  </svg>
+);
+    
