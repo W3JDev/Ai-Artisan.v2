@@ -3,10 +3,24 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="author" content="w3jdev">
+  <meta name="theme-color" content="#0B0F19">
+  <meta name="description" content="AI-powered resume architect using Gemini 3 Pro.">
+  
+  <!-- PWA & Mobile -->
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f4bc.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Resume Artisan">
+  
+  <meta property="og:site_name" content="AI Resume Artisan by w3jdev">
   <title>AI Resume Artisan - Enterprise Edition</title>
+  
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@400;600;700&family=JetBrains+Mono:wght@400;500&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  
   <script>
     tailwind.config = {
       darkMode: 'class',
@@ -79,6 +93,7 @@
     background-color: #020408;
     color: #E2E8F0;
     overflow-x: hidden;
+    overscroll-behavior-y: none; /* Prevent pull-to-refresh on mobile */
   }
   
   /* Refined Scrollbar */
@@ -118,5 +133,14 @@
 <body class="bg-obsidian antialiased selection:bg-accent selection:text-white">
   <div id="root"></div>
   <script type="module" src="/index.tsx"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/service-worker.js')
+          .then(reg => console.log('SW Registered', reg))
+          .catch(err => console.log('SW Fail', err));
+      });
+    }
+  </script>
 </body>
 </html>

@@ -615,7 +615,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onInterestRegistered }
               </a>
             </div>
           <p className="text-slate-400 text-sm mb-3">
-            &copy; {new Date().getFullYear()} AI Resume Artisan. All rights reserved. Built with ❤️ & AI.
+            &copy; {new Date().getFullYear()} <span className="text-sky-400 font-semibold">w3jdev</span> · <a href="https://github.com/w3jdev" className="hover:text-white transition-colors">github.com/w3jdev</a> · <a href="https://linkedin.com/in/w3jdev" className="hover:text-white transition-colors">linkedin.com/in/w3jdev</a>
+          </p>
+          <p className="text-slate-500 text-xs mb-3">
+             Generated with GitLaunch AI by w3jdev
           </p>
           <div className="space-x-4">
             <a href="#privacy" onClick={(e) => {e.preventDefault(); alert("Privacy Policy: Your data is processed locally and for API calls. Interest form data goes to Google Forms.")}} className="text-xs text-slate-500 hover:text-highlight transition-colors">Privacy Policy</a>

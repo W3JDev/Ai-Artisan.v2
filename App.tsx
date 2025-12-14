@@ -1,8 +1,5 @@
 
-import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { ResumeInput } from './components/ResumeInput';
-import { ResumePreview } from './components/ResumePreview';
-import { CoverLetterPreview } from './components/CoverLetterPreview';
+import React, { useState, useCallback, useEffect, useRef, Suspense } from 'react';
 import { SettingsModal } from './components/SettingsModal';
 import { 
   generateResumeFromText, 
@@ -17,6 +14,7 @@ import {
 } from './services/geminiService';
 import type { ResumeData, TemplateName, FontGroupName, CoverLetterTone, ResumeSettings, AtsAuditResult, TargetRegion, SavedVersion } from './types';
 import { LoadingSpinner } from './components/LoadingSpinner';
+import { OfflineAlert } from './components/OfflineAlert'; // Added
 import { 
   LightBulbIcon, XMarkIcon, BriefcaseIcon, DocumentMagnifyingGlassIcon, 
   SparklesIcon, UserGroupIcon, CogIcon, CheckIcon, CpuChipIcon, ExclamationTriangleIcon, 
@@ -24,6 +22,14 @@ import {
   MagnifyingGlassPlusIcon, MagnifyingGlassMinusIcon, ArrowsPointingInIcon
 } from './components/icons';
 import { formatResumeDataAsText } from './utils/textUtils';
+
+// Lazy Load Heavy Components for PWA Performance
+// Note: In a pure ESM environment without a bundler like Webpack/Vite in the immediate context,
+// simple imports are often better than React.lazy unless specifically bundled. 
+// However, assuming standard React 19 + Build Tooling for Enterprise PWA:
+import { ResumeInput } from './components/ResumeInput';
+import { ResumePreview } from './components/ResumePreview';
+import { CoverLetterPreview } from './components/CoverLetterPreview';
 
 // Sample Data
 const SAMPLE_RAW_TEXT = `John Doe
@@ -108,6 +114,9 @@ const App = () => {
   const [previewScale, setPreviewScale] = useState(1);
   const [isManualZoom, setIsManualZoom] = useState(false);
   
+  // PWA Install State
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  
   // Layout refs
   const previewContainerRef = useRef<HTMLDivElement>(null);
   const previewRef = useRef<HTMLDivElement>(null);
@@ -128,6 +137,12 @@ const App = () => {
             console.error("Failed to parse history", e);
         }
     }
+
+    // PWA Install Prompt Capture
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    });
   }, []);
 
   useEffect(() => {
@@ -149,30 +164,26 @@ const App = () => {
   const fitToScreen = useCallback(() => {
     if (previewContainerRef.current) {
         const containerWidth = previewContainerRef.current.offsetWidth;
-        const padding = 60; // Approximate padding (left/right + gaps)
+        const padding = 60; // Approximate padding
         const a4Width = 794; // approx A4 width in px at 96 DPI
         const availableWidth = containerWidth - padding;
         
-        // Calculate scale to fit width
         let newScale = availableWidth / a4Width;
-        // Clamp to reasonable defaults for "Fit" mode
         newScale = Math.min(Math.max(newScale, 0.3), 1.0); 
         
         setPreviewScale(newScale);
-        setIsManualZoom(false); // Reset manual flag
+        setIsManualZoom(false); 
       }
   }, []);
 
   useEffect(() => {
     const handleResize = () => {
-      // Only auto-scale if the user hasn't manually zoomed in/out
       if (!isManualZoom) {
         fitToScreen();
       }
     };
 
     window.addEventListener('resize', handleResize);
-    // Initial calculation after mount to ensure ref is ready
     setTimeout(fitToScreen, 100);
 
     return () => window.removeEventListener('resize', handleResize);
@@ -199,6 +210,14 @@ const App = () => {
       fitToScreen();
   };
 
+  const handleInstallApp = async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') {
+        setDeferredPrompt(null);
+    }
+  };
 
   const handleClearData = () => {
     localStorage.removeItem(STORAGE_KEYS.RAW_TEXT);
@@ -257,9 +276,13 @@ const App = () => {
         setError("Please enter a job description to research.");
         return;
     }
+    if (!navigator.onLine) {
+        setError("Market research requires an internet connection.");
+        return;
+    }
     setIsResearching(true);
     try {
-        const trends = await researchIndustryTrends(jobDescription.substring(0, 100) + " Role"); // Infer title
+        const trends = await researchIndustryTrends(jobDescription.substring(0, 100) + " Role"); 
         setIndustryTrends(trends);
     } catch (e) {
         console.error(e);
@@ -271,6 +294,10 @@ const App = () => {
   const handleGenerateHeadshot = async (size: '1K' | '2K' | '4K') => {
     if (!resumeData?.suggestedHeadshotPrompt) {
         setError("Generate a resume first to get a personalized headshot prompt.");
+        return;
+    }
+    if (!navigator.onLine) {
+        setError("Headshot generation requires an internet connection.");
         return;
     }
     setIsGeneratingHeadshot(true);
@@ -285,6 +312,10 @@ const App = () => {
   };
 
   const handleGenerateVideo = async (prompt: string, aspectRatio: '16:9' | '9:16') => {
+    if (!navigator.onLine) {
+        setError("Video generation requires an internet connection.");
+        return;
+    }
     setIsGeneratingVideo(true);
     setGeneratedVideoUrl(null);
     try {
@@ -336,6 +367,8 @@ const App = () => {
 
   const handleGenerateResume = useCallback(async (suggestionContext?: { originalGap: string; aiSuggestion: string; }) => {
     if (!rawText.trim()) return setError('Please input resume details.');
+    if (!navigator.onLine) return setError('Internet required for Gemini AI processing.');
+    
     setIsLoadingResume(true);
     setError(null);
     if (!suggestionContext) {
@@ -397,6 +430,7 @@ const App = () => {
 
   return (
     <div className="flex h-screen w-full bg-obsidian text-platinum overflow-hidden font-sans selection:bg-accent selection:text-white">
+      <OfflineAlert />
       
       {/* 1. Sidebar (Executive Rail) */}
       <nav className="w-20 lg:w-24 bg-charcoal border-r border-glass-border flex flex-col items-center py-8 z-20 flex-shrink-0 shadow-glass-xl">
@@ -433,7 +467,16 @@ const App = () => {
           />
         </div>
 
-        <div className="mt-auto">
+        <div className="mt-auto space-y-4 flex flex-col items-center">
+            {deferredPrompt && (
+                <button 
+                    onClick={handleInstallApp}
+                    className="p-3 text-accent hover:text-white transition-colors animate-pulse"
+                    title="Install App"
+                >
+                    <ArrowTrendingUpIcon className="w-6 h-6 rotate-90" />
+                </button>
+            )}
             <button 
                 onClick={() => setShowSettingsModal(true)}
                 className="p-3 text-slate-500 hover:text-white transition-colors"
@@ -453,7 +496,7 @@ const App = () => {
                 <div>
                     <h1 className="text-3xl font-bold font-serif text-white tracking-tight mb-1">Artisan<span className="text-accent">.</span></h1>
                     <p className="text-xs text-subtle uppercase tracking-[0.2em] font-medium flex items-center gap-2">
-                        Enterprise Suite <span className="w-1 h-1 bg-accent rounded-full"></span> Gemini 3 Pro
+                        Enterprise Suite <span className="w-1 h-1 bg-accent rounded-full"></span> by <a href="https://w3jdev.com" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">w3jdev</a>
                     </p>
                 </div>
                 {lastSaved && (
@@ -472,42 +515,44 @@ const App = () => {
 
             {/* Resume Input Context */}
             <div className={`${activeTab !== 'resume' ? 'hidden' : 'block'} animate-fade-in-up`}>
-                <ResumeInput 
-                    rawText={rawText}
-                    onRawTextChange={setRawText}
-                    jobDescription={jobDescription}
-                    onJobDescriptionChange={setJobDescription}
-                    onGenerateResume={() => handleGenerateResume()}
-                    onGenerateCoverLetter={handleGenerateCoverLetter}
-                    isGeneratingResume={isLoadingResume}
-                    isGeneratingCoverLetter={isLoadingCoverLetter}
-                    resumeGenerated={!!resumeData}
-                    selectedTemplate={selectedTemplate}
-                    onTemplateChange={setSelectedTemplate}
-                    selectedFontGroup={selectedFontGroup}
-                    onFontGroupChange={setSelectedFontGroup}
-                    targetRegion={targetRegion}
-                    onTargetRegionChange={setTargetRegion}
-                    onTryExample={() => { setRawText(SAMPLE_RAW_TEXT); setJobDescription(SAMPLE_JOB_DESCRIPTION); }}
-                    coverLetterTone={coverLetterTone}
-                    onCoverLetterToneChange={setCoverLetterTone}
-                    onGenerateInterviewQuestions={() => {}} 
-                    isGeneratingInterviewQuestions={false}
-                    settings={layoutSettings}
-                    onSettingsChange={setLayoutSettings}
-                    // New Props
-                    onGenerateHeadshot={handleGenerateHeadshot}
-                    isGeneratingHeadshot={isGeneratingHeadshot}
-                    onResearchTrends={handleResearchTrends}
-                    isResearching={isResearching}
-                    industryTrends={industryTrends}
-                    onAnalysisComplete={handleResumeAnalysisComplete}
-                    onSaveVersion={handleSaveVersion}
-                    // Veo Video
-                    onGenerateVideo={handleGenerateVideo}
-                    isGeneratingVideo={isGeneratingVideo}
-                    generatedVideoUrl={generatedVideoUrl}
-                />
+                <Suspense fallback={<div className="p-10 text-center text-slate-500">Loading Input Module...</div>}>
+                    <ResumeInput 
+                        rawText={rawText}
+                        onRawTextChange={setRawText}
+                        jobDescription={jobDescription}
+                        onJobDescriptionChange={setJobDescription}
+                        onGenerateResume={() => handleGenerateResume()}
+                        onGenerateCoverLetter={handleGenerateCoverLetter}
+                        isGeneratingResume={isLoadingResume}
+                        isGeneratingCoverLetter={isLoadingCoverLetter}
+                        resumeGenerated={!!resumeData}
+                        selectedTemplate={selectedTemplate}
+                        onTemplateChange={setSelectedTemplate}
+                        selectedFontGroup={selectedFontGroup}
+                        onFontGroupChange={setSelectedFontGroup}
+                        targetRegion={targetRegion}
+                        onTargetRegionChange={setTargetRegion}
+                        onTryExample={() => { setRawText(SAMPLE_RAW_TEXT); setJobDescription(SAMPLE_JOB_DESCRIPTION); }}
+                        coverLetterTone={coverLetterTone}
+                        onCoverLetterToneChange={setCoverLetterTone}
+                        onGenerateInterviewQuestions={() => {}} 
+                        isGeneratingInterviewQuestions={false}
+                        settings={layoutSettings}
+                        onSettingsChange={setLayoutSettings}
+                        // New Props
+                        onGenerateHeadshot={handleGenerateHeadshot}
+                        isGeneratingHeadshot={isGeneratingHeadshot}
+                        onResearchTrends={handleResearchTrends}
+                        isResearching={isResearching}
+                        industryTrends={industryTrends}
+                        onAnalysisComplete={handleResumeAnalysisComplete}
+                        onSaveVersion={handleSaveVersion}
+                        // Veo Video
+                        onGenerateVideo={handleGenerateVideo}
+                        isGeneratingVideo={isGeneratingVideo}
+                        generatedVideoUrl={generatedVideoUrl}
+                    />
+                </Suspense>
             </div>
             
             {/* Analysis Panel - Gap Analysis Improved */}
@@ -754,18 +799,20 @@ const App = () => {
              <div className={`
                  transition-shadow duration-700 shadow-3d-float
              `}>
-                {activeTab === 'resume' && resumeData && (
-                    <ResumePreview 
-                      data={resumeData} 
-                      template={selectedTemplate} 
-                      fontGroup={selectedFontGroup} 
-                      settings={layoutSettings}
-                      headshotImage={headshotImage}
-                    />
-                )}
-                {activeTab === 'cover-letter' && coverLetter && (
-                    <CoverLetterPreview letter={coverLetter} resumeData={resumeData} />
-                )}
+                <Suspense fallback={<div className="h-[297mm] bg-white flex items-center justify-center">Loading Preview...</div>}>
+                    {activeTab === 'resume' && resumeData && (
+                        <ResumePreview 
+                        data={resumeData} 
+                        template={selectedTemplate} 
+                        fontGroup={selectedFontGroup} 
+                        settings={layoutSettings}
+                        headshotImage={headshotImage}
+                        />
+                    )}
+                    {activeTab === 'cover-letter' && coverLetter && (
+                        <CoverLetterPreview letter={coverLetter} resumeData={resumeData} />
+                    )}
+                </Suspense>
                 
                 {/* Empty State - Centered within the scaled area */}
                 {!resumeData && !isLoadingResume && (
