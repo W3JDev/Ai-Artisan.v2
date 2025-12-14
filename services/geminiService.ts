@@ -233,9 +233,18 @@ export async function analyzeImportedResumeText(text: string): Promise<ResumeDat
 
 export async function analyzeResumeFromLink(url: string): Promise<ResumeData> {
   const prompt = `
-    Go to: ${url}
-    Scrape the profile. Rewrite it into a Top 1% One-Page Resume.
-    Output JSON matching 'ResumeData'.
+    You are an expert recruiter and researcher.
+    Goal: Build a detailed Resume Profile from a LinkedIn URL using Google Search.
+    
+    Target Profile: ${url}
+    
+    INSTRUCTIONS:
+    1. **Execute Search**: Use the Google Search tool to find the specific LinkedIn profile and any related public professional profiles (GitHub, Portfolio, Company Bio) associated with this user handle or name.
+    2. **Extract Data**: Gather the Name, Headline, About/Summary, Work Experience (Companies, Job Titles, Dates, Responsibilities), Education, and Skills.
+    3. **Synthesize**: If the search results are fragmented, combine them to form a cohesive professional history. Infer likely skills based on job titles if specific skills lists are not visible.
+    4. **Format**: Construct a valid JSON object matching the 'ResumeData' structure.
+    
+    NOTE: If you absolutely cannot find data for this specific person, return an empty JSON structure rather than hallucinating details.
   `;
   try {
     const response: GenerateContentResponse = await ai.models.generateContent({
@@ -250,7 +259,7 @@ export async function analyzeResumeFromLink(url: string): Promise<ResumeData> {
     return parseJsonFromText(response.text) as ResumeData;
   } catch (error) {
     console.error("Error analyzing link:", error);
-    throw new Error("Failed to extract data from link.");
+    throw new Error("Failed to extract data from link. Profile may be private.");
   }
 }
 

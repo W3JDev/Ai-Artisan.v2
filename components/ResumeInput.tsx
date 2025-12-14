@@ -162,11 +162,17 @@ export const ResumeInput: React.FC<ExtendedResumeInputProps> = ({
     setScanError(null);
     try {
         const analyzedData = await analyzeResumeFromLink(linkInput);
+        
+        // Validation: Prevent blank overrides
+        if (!analyzedData || (!analyzedData.name && (!analyzedData.experience || analyzedData.experience.length === 0))) {
+             throw new Error("No readable profile data found. The profile might be private or not indexed.");
+        }
+
         if (onAnalysisComplete) {
             onAnalysisComplete(analyzedData);
         }
     } catch (error) {
-        setScanError('Failed to import from link. Ensure the profile is public.');
+        setScanError('Failed to import. Profile may be private. Try pasting the text manually.');
         console.error(error);
     } finally {
         setIsScanning(false);
